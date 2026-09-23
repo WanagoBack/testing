@@ -12,8 +12,6 @@
       "folder": "InDeKijker",
       "title": "Wat is Wanagogo?",
       "description": "Wat is Wanagogo eigenlijk?",
-      "seasonNumber": 1,
-      "episode": 2,
       "driveId": "1zvUuai-RL32ZhOj6A0FSSSxueINLVmW0"
     },
     {
@@ -70,12 +68,11 @@
       "driveId": "1US-TXjN-6kv01DhrjBm6G_27v_4Mx8J4"
     },
     {
-      "folder": "Plop",
-      "title": "Plop in de Stad",
-      "category": "films",
-      "year": 2008,
-      "description": "Lui eet groeibessen en komt terecht in de stad",
-      "driveId": "1y32qIrtbqEnRU_rR9gJYX-U-zaNJbF6l"
+    "folder": "InDeKijker",
+      "title": "Wanagogo Videoclip",
+      "description": "Wil je praten met piraten?",
+     
+      "driveId": "1yc99-n2dBU9mQq6vrvBCaw5V4BHphwBA"
 
     }
   ]
