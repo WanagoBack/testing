@@ -3,17 +3,17 @@
     {
       "folder": "Plop",
       "title": "Klus op dieet",
-      "description": "Klus is te dik en gaat op dieet",
-      "seasonNumber": 2,
-      "episode": 143,
+      "description": "Dit is mijn eerste online video.",
+      "seasonNumber": 1,
+      "episode": 1,
       "driveId": "1sqsYuXm8JEX9UyjNCQiOC8aSX2oPOaVY"
     },
     {
       "folder": "InDeKijker",
       "title": "Wat is Wanagogo?",
-      "description": "Wat was Wanagogo eigenlijk?",
+      "description": "Beschrijving van deze video.",
       "seasonNumber": 1,
-      "episode": 1,
+      "episode": 2,
       "driveId": "1zvUuai-RL32ZhOj6A0FSSSxueINLVmW0"
     }
   ]
