@@ -15,42 +15,51 @@
       "seasonNumber": 1,
       "episode": 2,
       "driveId": "1zvUuai-RL32ZhOj6A0FSSSxueINLVmW0"
-     },
-     {
+    },
+    {
       "folder": "Plop",
       "title": "Het kabouterziekenhuis",
       "description": "Klus speelt verpleger in zijn kabouterziekenhuis",
       "seasonNumber": 4,
       "episode": 270,
       "driveId": "1U15fX8uN8ArajIjk9joy9UpM50YjSZx5"
-     },
-     {
+    },
+    {
       "folder": "Plop",
       "title": "Kaboutercarnaval",
       "category": "karaoke",
       "description": "De kabouters vieren carnaval",
       "driveId": "1u0LlmaqGUDN8EGoY9wcK_0yvB8THQASQ"
-     },
-     {
+    },
+    {
       "folder": "Plop",
       "title": "Sjoebidoebidabidee",
       "category": "karaoke",
       "description": "De kabouters versieren de meisjes",
       "driveId": "1YNvq--WiQPEGxUrodNsTsgmu6MpNuKx7"
-      },
-     {
+    },
+    {
       "folder": "InDeKijker",
       "title": "Samson City trailer",
       "description": "De trailer voor Samson City op Plop RP",
       "driveId": "1zIhCWgr9qtHEjBOQfqHDUzYDqJrwlGiK"
-         },
-     {
+    },
+    {
       "folder": "SamsonGert",
       "title": "Samson en Gert Winterpret",
-       "category": "series",
+      "category": "series",
       "description": "S01E01 De beer",
       "driveId": "1b05KscLocNVh-C_TKL9yryvQKnLMOVdu"
     }
+  ],
+
+  "games": [
+    {
+      "id": "pietpiraat-game",
+      "title": "berend brokketest",
+      "type": "flash",
+      "driveId": "1sg3o0kGBYQ4_g0bGIQxCYvE2xvUnUID6",
+      "iconDriveId": "1hNLHX47Ym5l-Nl11zDuIyUY4_iVTJFcT"
+    }
   ]
 }
-
