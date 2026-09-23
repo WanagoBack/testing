@@ -51,15 +51,5 @@
       "description": "S01E01 De beer",
       "driveId": "1b05KscLocNVh-C_TKL9yryvQKnLMOVdu"
     }
-  ],
-
-  "games": [
-    {
-      "id": "pietpiraat-game",
-      "title": "berend brokketest",
-      "type": "flash",
-      "driveId": "1sg3o0kGBYQ4_g0bGIQxCYvE2xvUnUID6",
-      "iconDriveId": "117lZPceztFV00aw9wa2MCrHG4BragBdN"
-    }
   ]
 }
