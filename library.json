@@ -50,13 +50,13 @@
       "category": "series",
       "description": "S01E01 De beer",
       "driveId": "1b05KscLocNVh-C_TKL9yryvQKnLMOVdu"
-      },
+    },
     {
       "folder": "InDeKijker",
       "title": "Plop RP - Space update trailer",
       "description": "De trailer van de Geannuleerde Space Update van Plop RP",
       "driveId": "1_0zgVGWsTEmQIY3gUrIg1VJyzeyP-ZwQ"
-         },
+    },
     {
       "folder": "InDeKijker",
       "title": "Plop RP - Klus wil vliegen trailer",
@@ -68,12 +68,12 @@
       "title": "Plop RP - Kabouterdans",
       "description": "Nog een oude promotie voor Plop RP",
       "driveId": "1US-TXjN-6kv01DhrjBm6G_27v_4Mx8J4"
-       },
+    },
     {
       "folder": "Plop",
       "title": "Plop in de Stad",
       "category": "films",
-       "year": 2008,
+      "year": 2008,
       "description": "Lui eet groeibessen en komt terecht in de stad",
       "driveId": "1y32qIrtbqEnRU_rR9gJYX-U-zaNJbF6l"
     }
