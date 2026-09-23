@@ -3,18 +3,40 @@
     {
       "folder": "Plop",
       "title": "Klus op dieet",
-      "description": "Dit is mijn eerste online video.",
-      "seasonNumber": 1,
-      "episode": 1,
+      "description": "De kabouters vinden dat klus op dieet moet",
+      "seasonNumber": 2,
+      "episode": 143,
       "driveId": "1sqsYuXm8JEX9UyjNCQiOC8aSX2oPOaVY"
     },
     {
       "folder": "InDeKijker",
       "title": "Wat is Wanagogo?",
-      "description": "Beschrijving van deze video.",
+      "description": "Wat is Wanagogo eigenlijk?",
       "seasonNumber": 1,
       "episode": 2,
       "driveId": "1zvUuai-RL32ZhOj6A0FSSSxueINLVmW0"
+     },
+     {
+      "folder": "Plop",
+      "title": "Het kabouterziekenhuis",
+      "description": "Klus speelt verpleger in zijn kabouterziekenhuis",
+      "seasonNumber": 4,
+      "episode": 270,
+      "driveId": "1U15fX8uN8ArajIjk9joy9UpM50YjSZx5"
+     },
+     {
+      "folder": "Plop",
+      "title": "Kaboutercarnaval",
+      "category": "karaoke",
+      "description": "De kabouters vieren carnaval",
+      "driveId": "1u0LlmaqGUDN8EGoY9wcK_0yvB8THQASQ"
+     },
+     {
+      "folder": "Plop",
+      "title": "Sjoebidoebidabidee",
+      "category": "karaoke",
+      "description": "De kabouters versieren de meisjes",
+      "driveId": "1YNvq--WiQPEGxUrodNsTsgmu6MpNuKx7"
     }
   ]
 }
