@@ -76,7 +76,13 @@
       "year": 2008,
       "description": "Lui eet groeibessen en komt terecht in de stad",
       "driveId": "1y32qIrtbqEnRU_rR9gJYX-U-zaNJbF6l"
+        },
+    {
+       "folder": "K3",
+  "title": "YouTube test",
+  "category": "series",
+  "youtubeUrl": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
     }
   ]
-}
+} 
 
