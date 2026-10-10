@@ -231,7 +231,15 @@
       "category": "films",
       "description": "Plop krijgt een brief van zijn overgrootvader Knap. Daarin staat dat Knap ziek is en enkel kan genezen als hij het sap drinkt van de Karbonkelwortel. De kabouters willen de plant naar kabouter Knap brengen, maar die woont heel ver weg.",
       "year": 2000,
-      "megaUrl": "https://mega.nz/file/VFhmCBDb#Hdulh5leJOSCejkovoGL4Z_glzdTQX11RFztQKNOIkQ"
+      "megaUrl": "https://mega.nz/file/VFhmCBDb#Hdulh5leJOSCejkovoGL4Z_glzdTQX11RFztQKNOIkQ",
+      "megaUrl3ds": "https://mega.nz/file/9IRCiIAI#ZGbsVFezFBzSZzb2DulcxoDRAYrb5nkVTcUlFHJruuo",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/9IRCiIAI#ZGbsVFezFBzSZzb2DulcxoDRAYrb5nkVTcUlFHJruuo"
+        }
+      ]
     },
     {
       "folder": "Plop",
