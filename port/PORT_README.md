@@ -1,8 +1,18 @@
-# WanagoBack voor New Nintendo 3DS — prototype 0.6
+# WanagoBack voor New Nintendo 3DS — 1.0 RC1
 
-De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal verpakt met de oorspronkelijke Windows-textures. Dit is een prototype: installatie, audio, video en touchscreen zijn nog niet op een echte console getest.
+De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal verpakt met de oorspronkelijke Windows-textures. Dit is een release candidate: installatie, audio, video en touchscreen zijn nog niet op een echte console getest. Een definitieve stabiele release vereist die hardwaretest.
 
-## Wat deze eerste port bevat
+## Nieuw in 1.0 RC1
+
+Teruggaan vanuit de videospeler wacht nu op bevestiging dat decoder, netwerklezer, audiobuffers en videogeheugen zijn opgeruimd. Pas daarna herlaadt het menu zijn textures en muziek. Herhaald op terug tikken maakt geen extra stopverzoeken; een volle opdrachtwachtrij kan opnieuw worden geprobeerd. Bij een mislukte start wordt de speler gesuspendeerd zodat de bibliotheek opnieuw bereikbaar is. Aan het einde van een video keert de app terug naar het detailvenster; de upstream bestandsherhaling is voor native video uitgeschakeld.
+
+Profiel kiezen en verwijderen draaien de wijziging terug als opslaan op SD mislukt. De fout staat nu ook op het profielkeuze- en verwijdervenster. Na verwijderen uit een playlist wordt de videolijst opnieuw opgebouwd en de toevoegmodus afgesloten. De bestaande Windows-textures en playlistkeuze blijven behouden.
+
+Getest met hosttests: vertraagde decoderafsluiting, herhaalde terugknop, volle wachtrij, SD-schrijffouten bij profielwissel/verwijdering, navigatie, playlistintenties, geheugenoverdracht, blijvende touchscreenknoppen, cataloguskwaliteitselectie en HTTPS/MEGA-fouten. Deze simulaties vervangen geen hardwaretest.
+
+De ingebouwde catalogus bevat nog geen vooraf omgezette 240p-links. Er is dus geen garantie op vloeiend afspelen van alle originele MEGA-bestanden. Gebruik de laagste werkelijk beschikbare versie via `sources3ds` of voorbereide SD-video. 400×240 weergave alleen maakt een zware bron niet lichter.
+
+## Wat de port bevat
 
 - Touchscreen-interface met de originele Windows-textures: achtergrond, personagekaarten, navigatieknoppen, geel detailvenster, categorie-iconen en Lilita One-lettertype.
 - Personagekeuze, horizontaal verschuifbare videorijen, detailvenster, lokale favorieten/playlist, zoeken en instellingen.
@@ -80,7 +90,7 @@ Thumbnails rechtstreeks uit MEGA, pc-games en boeken zijn nog niet geport. Besta
 
 ## Installeren en bouwen
 
-Installeer WanagoBack_New3DS_0.6.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
+Installeer WanagoBack_New3DS_1.0_RC1.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
 
 De code staat op de branch `codex/wanagoback-3ds` van `WanagoBack/testing`. De workflow daar compileert alleen code. De originele textures staan uitsluitend in dit bronpakket en het lokaal verpakte CIA-bestand; het 3DSX-bestand uit die workflow bevat deze textures niet.
 
