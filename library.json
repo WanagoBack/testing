@@ -153,7 +153,15 @@
       "folder": "InDeKijker",
       "title": "Plop RP - Kabouterdans",
       "description": "Nog een oude promotie voor Plop RP",
-      "megaUrl": "https://mega.nz/file/QRwWEK6I#Px8PpTrdwmEjluI5UKJ_U-P_sHXaCSQylqgOF2YU3T0"
+      "megaUrl": "https://mega.nz/file/QRwWEK6I#Px8PpTrdwmEjluI5UKJ_U-P_sHXaCSQylqgOF2YU3T0",
+      "megaUrl3ds": "https://mega.nz/file/odYmVYRL#4pOF2JQ9J5hHnFqA6iFu04hTfqtXuoONGnVG8RiyiVw",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/odYmVYRL#4pOF2JQ9J5hHnFqA6iFu04hTfqtXuoONGnVG8RiyiVw"
+        }
+      ]
     },
     {
       "folder": "InDeKijker",
