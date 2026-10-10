@@ -10,3 +10,5 @@ bool Vid_wgb_open(const char* name, const char* directory);
 
 void Wgb_video_draw(double position,double duration,bool paused,bool loading);
 int Wgb_video_input(const Hid_info* key,double* value);
+
+void Wgb_video_stage(const char* stage);

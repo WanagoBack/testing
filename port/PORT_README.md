@@ -1,4 +1,4 @@
-# WanagoBack voor New Nintendo 3DS — prototype 0.4
+# WanagoBack voor New Nintendo 3DS — prototype 0.5
 
 De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal verpakt met de oorspronkelijke Windows-textures. Dit is een prototype: installatie, audio, video en touchscreen zijn nog niet op een echte console getest.
 
@@ -14,6 +14,27 @@ De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal v
 - Speelt voorbereide SD-video's met de decoder van Video player for 3DS. Hardwaredecodering staat upstream standaard aan op New-modellen.
 - Optioneel `url3ds`: een directe HTTPS-link naar een geschikte MP4. Die wordt eerst volledig naar SD gedownload. Daarna druk je A om te kijken. B annuleert een download. Er is nog geen gedeeltelijke downloadhervatting of directe streaming.
 - Afzonderlijke app-ID 0xEC610. Dit is een gekozen homebrew-ID, geen officieel gereserveerde registratie. De upstream zelf-updater staat uit.
+
+## Nieuw in 0.5
+
+Onderzoek naar de gemelde crash bij In de kijker: de netwerklees- en opentaken hadden elk 64 KiB stack, terwijl ze nu ook HTTPS uitvoeren. Die taken krijgen 256 KiB. Dit is een voorzorg tegen stackuitputting, geen bevestigde diagnose van de crash. `3ds/WanagoBack/last_playback.txt` bewaart titel en laatste opstartstap (geen bronlinks/sleutels). De specifieke crash is nog niet op hardware gereproduceerd.
+
+De oorspronkelijke fullscreen-timer dimde en schakelde het onderste scherm uit. Bij native WanagoBack-video blijft het touchscreen nu ingeschakeld, met dezelfde helderheid als het bovenste scherm. Terug, pauze en spoelen blijven zichtbaar.
+
+Favorieten en maximaal acht benoemde playlists worden per profiel opgeslagen met reservekopie en herstel. Gebruik het playlist-icoon bovenaan om lijsten te maken, openen, hernoemen of verwijderen. In het gele videovenster opent het playlist-icoon een keuzelijst; tik op een lijst om de video toe te voegen of eruit te verwijderen. Een ster geeft aan dat de video al in die lijst staat. De video's staan in toevoegvolgorde. Een playlist start nog niet automatisch de volgende video. Oude favorieten en de oude enkele playlist worden bij het eerste gebruik overgenomen. Mislukte wijzigingen worden teruggedraaid en krijgen een zichtbare SD-foutmelding.
+
+De videospeler slaat niet-sleutelframes over als de decoder achterloopt en gebruikt multithreading. Bij codecs die verkleind decoderen ondersteunen wordt automatisch een kleinere decodeerresolutie gekozen, met behoud van ten minste 240 beeldlijnen. Hardwaredecodering blijft beschikbaar; dit voegt geen realtime omzetting voor zware H.264/VP9-video's toe.
+
+Beschikbare vooraf gemaakte MEGA-versies kunnen in `sources3ds` staan. De 3DS kiest de laagste positieve hoogte en daarna de laagste bitrate. `megaUrl3ds` blijft de terugvaloptie, `megaUrl` de oorspronkelijke bron. Een lichte `url3ds` krijgt nu voorrang op de oorspronkelijke MEGA-bron wanneer er geen lichte MEGA-versie is. Een voorbereide SD-video blijft eerste keus.
+
+```json
+{"title":"Voorbeeld","megaUrl":"ORIGINELE_LINK","sources3ds":[
+ {"height":480,"bitrate":900000,"megaUrl":"VOLLEDIGE_MEGA_LINK_480"},
+ {"height":240,"bitrate":350000,"megaUrl":"VOLLEDIGE_MEGA_LINK_240"}
+]}
+```
+
+De bestaande online catalogus is niet gewijzigd en heeft daardoor niet vanzelf meerdere kwaliteitsversies. Voeg werkelijke vooraf omgezette uploads toe; verzonnen kwaliteits-URL's werken niet.
 
 ## Herstel in 0.4
 
@@ -47,7 +68,7 @@ Thumbnails rechtstreeks uit MEGA, pc-games en boeken zijn nog niet geport. Besta
 
 ## Installeren en bouwen
 
-Installeer WanagoBack_New3DS_0.4.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
+Installeer WanagoBack_New3DS_0.5.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
 
 De code staat op de branch `codex/wanagoback-3ds` van `WanagoBack/testing`. De workflow daar compileert alleen code. De originele textures staan uitsluitend in dit bronpakket en het lokaal verpakte CIA-bestand; het 3DSX-bestand uit die workflow bevat deze textures niet.
 
@@ -65,7 +86,21 @@ python3 tools/prepare_sd.py --videos "$HOME/Movies/WanagoBack" --sd "$HOME/Deskt
 
 Kopieer daarna de gemaakte map `3ds` naar de root van je 3DS-SD-kaart. De computer hoeft tijdens het kijken niet aan te staan. De tool maakt H.264 baseline/AAC-video's van 400×240 met behoud van beeldverhouding. Bestaande voorbereide bestanden worden overgeslagen; `--overwrite` vervangt ze. Met `--library pad/naar/library.json` kun je ook zonder internet voorbereiden.
 
-Geen lokale video gevonden? De tool meldt de ontbrekende titels. Meerdere lokale bestanden met dezelfde titel worden gemeld en overgeslagen. De tool downloadt zelf niets van MEGA en omzeilt geen hostinglimieten.
+Geen lokale video gevonden? De tool meldt de ontbrekende titels. Meerdere lokale bestanden met dezelfde titel worden gemeld en overgeslagen. Met `--mega` kan de tool ontbrekende publieke MEGA-bestanden zelf downloaden en omzetten. Installeer hiervoor `python3 -m pip install cryptography` en gebruik bijvoorbeeld:
+
+```sh
+python3 tools/prepare_sd.py --mega --sd WanagoBack-SD
+```
+
+Dit kan lang duren en verbruikt de normale MEGA-overdrachtsruimte; limieten worden niet omzeild. Na een fout kun je hetzelfde commando opnieuw uitvoeren: voltooide video's worden overgeslagen. De downloadhelper controleert HTTPS en bestandsgrootte, maar niet MEGA's volledige bestands-MAC. De nieuwe automatische downloadhelper is met een lokale versleutelde fixture getest; de conversie is ook op de aangeleverde video getest.
+
+Alleen menumuziek voorbereiden:
+
+```sh
+python3 tools/prepare_sd.py --music lied.mp3 --sd WanagoBack-SD
+```
+
+De optionele SD-voorbeeldzip bevat uitsluitend de aangeleverde video “Wat is Wanagogo?” in compacte kwaliteit met thumbnail. De andere catalogusvideo's worden daar niet mee omgezet.
 
 ## Optionele rechtstreekse download
 

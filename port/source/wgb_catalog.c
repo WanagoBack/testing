@@ -44,6 +44,18 @@ int Wcatalog_parse(const char*s,Entry*out,int capacity){
   FIELD("folder",folder);FIELD("description",description);FIELD("category",category);FIELD("url3ds",url);FIELD("megaUrl3ds",stream);
   if(!FIELD("megaUrl",source)||!e.source[0])if(!FIELD("videoUrl",source)||!e.source[0])snprintf(e.source,sizeof(e.source),"%s",e.url);
 #undef FIELD
+  /* Optional pre-encoded MEGA variants: choose lowest positive height, then bitrate.
+     An explicit megaUrl3ds is the fallback when variants are absent/invalid. */
+  int variants=get(s,t,n,i,"sources3ds"),best_h=2147483647,best_rate=2147483647;
+  if(variants>=0&&t[variants].type==JSMN_ARRAY)for(int v=variants+1;v<n&&t[v].start<t[variants].end;v=skip(t,n,v)){
+   if(t[v].type!=JSMN_OBJECT)continue;
+   int ht=get(s,t,n,v,"height"),br=get(s,t,n,v,"bitrate");char link[1536]={0};
+   if(ht<0||t[ht].type!=JSMN_PRIMITIVE||!string(s,t,get(s,t,n,v,"megaUrl"),link,sizeof(link)))continue;
+   int height=atoi(s+t[ht].start),rate=br>=0&&t[br].type==JSMN_PRIMITIVE?atoi(s+t[br].start):2147483647;
+   if(height<1||height>4320||strncmp(link,"https://mega.nz/file/",21)||!strchr(link,'#'))continue;
+   if(rate<1)rate=2147483647;
+   if(height<best_h||(height==best_h&&rate<best_rate)){best_h=height;best_rate=rate;snprintf(e.stream,sizeof(e.stream),"%s",link);}
+  }
   int sn=get(s,t,n,i,"seasonNumber"),ep=get(s,t,n,i,"episode");if(sn>=0&&ep>=0&&t[sn].type==JSMN_PRIMITIVE&&t[ep].type==JSMN_PRIMITIVE)snprintf(e.meta,sizeof(e.meta),"Seizoen %d - Aflevering %d",atoi(s+t[sn].start),atoi(s+t[ep].start));
   out[count++]=e;
  }
