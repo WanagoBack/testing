@@ -1,0 +1,58 @@
+name: Build WanagoBack New 3DS CIA
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/wanagoback-3ds]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    container:
+      image: devkitpro/devkitarm:latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install packaging prerequisites
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 ca-certificates git
+      - name: Prepare pinned player and apply WanagoBack port
+        run: |
+          git clone https://github.com/Core-2-Extreme/Video_player_for_3DS.git player
+          git -C player checkout 3b326d272344087017549f5f1ac5eadf06e413b7
+          git -C player apply ../port/upstream.patch
+          cp port/source/wanagoback.c player/source/
+          cp port/include/wanagoback.h player/include/
+          mkdir -p player/tools
+          cp port/tools/*.py player/tools/
+          cp port/PORT_README.md player/
+      - name: Install pinned CIA tools
+        working-directory: player
+        run: python3 tools/install_cia_tools.py
+      - name: Record compiler versions
+        working-directory: player
+        run: |
+          /opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc --version > BUILD_VERSIONS.txt
+          printf '\nUpstream player: 3b326d272344087017549f5f1ac5eadf06e413b7\n' >> BUILD_VERSIONS.txt
+      - name: Build native application then CIA
+        working-directory: player
+        env:
+          DEVKITPRO: /opt/devkitpro
+          DEVKITARM: /opt/devkitpro/devkitARM
+        run: |
+          export PATH="$PWD/tools/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/devkitARM/bin:$PATH"
+          make 3dsx
+          make cia_normal_ram
+          python3 tools/verify_outputs.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: WanagoBack-New3DS-test-build
+          if-no-files-found: error
+          path: |
+            player/WanagoBack.cia
+            player/WanagoBack.3dsx
+            player/WanagoBack.smdh
+            player/BUILD_VERSIONS.txt
+            player/PORT_README.md
+            player/tools/prepare_sd.py
