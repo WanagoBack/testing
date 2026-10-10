@@ -25,11 +25,11 @@ De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal v
 
 ## Grenzen
 
-De streamingtransportcode is op de host getest met een echte cataloguslink: metadata, ontsleuteling, lezen over blokgrenzen, willekeurig zoeken, EOF en annuleren. De ontsleutelde bytes zijn onafhankelijk vergeleken. De ARM-build en CIA-verpakking zijn afzonderlijk gecontroleerd. De complete app is nog niet op een echte New 3DS getest.
+De streamingtransportcode is op de host getest met een echte cataloguslink: metadata, ontsleuteling, lezen over blokgrenzen, willekeurig zoeken, EOF en annuleren. De ontsleutelde bytes zijn onafhankelijk vergeleken. Een HTTPS-testserver controleerde daarnaast bestanden groter dan 2 GiB, foutieve metadata, verwijderde links, korte antwoorden en overdrachtslimieten. De ARM-build en CIA-verpakking zijn afzonderlijk gecontroleerd. De complete app is nog niet op een echte New 3DS getest.
 
 Streaming ondersteunt publieke losse bestandslinks (`https://mega.nz/file/HANDLE#KEY` en oude `#!HANDLE!KEY`-links), geen mappen of accountlogin. HTTPS-certificaten worden gecontroleerd. Bij gedeeltelijk lezen kan MEGA's volledige bestands-MAC niet worden gecontroleerd; er wordt geen cryptografische volledige-bestandsverificatie geclaimd.
 
-Het videoformaat en de bitrate moeten binnen de decoder- en wifi-capaciteit van de New 3DS passen. Dit converteert geen 1080p/4K-video tijdens het streamen. Gebruik bij te zware bestanden een lichtere MP4 op MEGA of de bestaande SD-voorbereiding. De grootte van een film alleen zegt niet of afspelen lukt.
+Het videoformaat en de bitrate moeten binnen de decoder- en wifi-capaciteit van de New 3DS passen. Dit converteert geen 1080p/4K-video tijdens het streamen. Gebruik bij te zware bestanden een lichtere MP4 op MEGA of de bestaande SD-voorbereiding. De grootte van een film alleen zegt niet of afspelen lukt. De geteste catalogusvideo Klus op dieet gebruikt VP9 op 1250×720; daarvoor wordt geen vloeiende weergave op de New 3DS beloofd.
 
 Thumbnails rechtstreeks uit MEGA, pc-games en boeken zijn nog niet geport. Bestaande voorbereide SD-video's en thumbnails blijven werken. Op 320×240 zijn tekstmaten en aantallen zichtbare kaarten aangepast; dit is geen pixelidentieke desktop-render.
 

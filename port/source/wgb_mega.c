@@ -29,6 +29,7 @@ static void error(unsigned n){__atomic_store_n(&error_code,n,__ATOMIC_RELAXED);}
 static bool stopped(const Wmega_stream* s){return __atomic_load_n(&cancelled,__ATOMIC_RELAXED)!=0 || (s && s->generation!=__atomic_load_n(&generation,__ATOMIC_RELAXED));}
 void Wmega_begin(void){__atomic_add_fetch(&generation,1,__ATOMIC_RELAXED);__atomic_store_n(&cancelled,0,__ATOMIC_RELAXED);error(E_NONE);}
 void Wmega_cancel(void){__atomic_store_n(&cancelled,1,__ATOMIC_RELAXED);}
+bool Wmega_cancelled(void){return stopped(NULL)||__atomic_load_n(&error_code,__ATOMIC_RELAXED)==E_CANCEL;}
 bool Wmega_buffering(void){return __atomic_load_n(&busy,__ATOMIC_RELAXED)!=0;}
 const char* Wmega_error(void){
  switch(__atomic_load_n(&error_code,__ATOMIC_RELAXED)){

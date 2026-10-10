@@ -12,4 +12,5 @@ void Wmega_close(Wmega_stream* stream);
 void Wmega_begin(void);
 void Wmega_cancel(void);
 bool Wmega_buffering(void);
+bool Wmega_cancelled(void);
 const char* Wmega_error(void);
