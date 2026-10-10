@@ -1,6 +1,6 @@
-# WanagoBack voor New Nintendo 3DS — prototype 0.2
+# WanagoBack voor New Nintendo 3DS — prototype 0.3
 
-Dit is een BRONPROJECT met GitHub Actions-build, geen reeds gebouwde of op hardware geteste CIA. De vorige 0.1-build is succesvol op GitHub uitgevoerd; deze versie wordt met dezelfde workflow gebouwd. Er kunnen nog compiler- of consoleproblemen blijken uit de eerste build/test.
+De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal verpakt met de oorspronkelijke Windows-textures. Dit is een prototype: installatie, audio, video en touchscreen zijn nog niet op een echte console getest.
 
 ## Wat deze eerste port bevat
 
@@ -15,20 +15,31 @@ Dit is een BRONPROJECT met GitHub Actions-build, geen reeds gebouwde of op hardw
 - Optioneel `url3ds`: een directe HTTPS-link naar een geschikte MP4. Die wordt eerst volledig naar SD gedownload. Daarna druk je A om te kijken. B annuleert een download. Er is nog geen gedeeltelijke downloadhervatting of directe streaming.
 - Afzonderlijke app-ID 0xEC610. Dit is een gekozen homebrew-ID, geen officieel gereserveerde registratie. De upstream zelf-updater staat uit.
 
-## Wat nog NIET geport is
+## Nieuw in 0.3
 
-MEGA-decryptie/direct MEGA-streamen, thumbnails rechtstreeks uit MEGA, pc-profielen, games en boeken. Niet alle Windows-animaties of schermen zijn al gereproduceerd. Op 320×240 zijn tekstmaten en aantallen zichtbare kaarten aangepast; dit is geen pixelidentieke desktop-render. Bestaande `megaUrl`-items staan wel in de bibliotheek en worden aan voorbereide lokale bestanden gekoppeld. Je hoeft je bestaande online JSON hiervoor niet aan te passen. Dit project lost de Windows-startfout niet op.
+- Rechtstreeks afspelen van publieke MEGA-bestandslinks uit `megaUrl`, zonder vooraf downloaden naar SD. Kleine HTTPS-blokken worden op verzoek opgehaald en lokaal met AES-CTR ontsleuteld. Twee geheugenblokken van 512 KiB; geen volledige film in RAM of op SD. De decoder leest netwerkdata op zijn bestaande achtergrondthread.
+- Door- en terugspoelen via willekeurige byteposities, ook bij MP4-bestanden met metadata achteraan. Maximaal drie pogingen bij netwerkfouten; overdrachtslimieten worden gemeld en niet omzeild.
+- Terug met B of de terugknop, ook vanuit de speler en tijdens laden. Schermgeschiedenis herstelt de vorige categorie en positie.
+- Vier lokale profielen met naam, de twaalf oorspronkelijke avatars, bewerken en verwijderen met bevestiging. Profielen staan op SD; favorieten en playlist zijn per profiel. De bestaande favorieten blijven bij het standaardprofiel.
+- Alle dertien oorspronkelijke personagecategorieën blijven selecteerbaar, ook als de online catalogus nog geen video's voor die categorie bevat.
 
-## CIA laten bouwen op GitHub
+## Grenzen
 
-1. Pak deze ZIP uit.
-2. Maak met GitHub Desktop een nieuwe repository en zet de INHOUD van deze projectmap in de repositorymap. `Makefile`, `source`, `library`, `tools` en `.github` moeten direct in de root staan. De verborgen `.github`-map moet mee; upload niet alleen de ZIP.
-3. Commit en publiceer de repository naar je GitHub-account. Er is niets vanuit deze sessie gepubliceerd.
-4. Open op GitHub **Actions → Build WanagoBack New 3DS CIA**. De push naar main/master start de build; anders kies **Run workflow**.
-5. Bij een groene build download je onder **Artifacts** het pakket `WanagoBack-New3DS-test-build`. Daarin staan `WanagoBack.cia` en `WanagoBack.3dsx`.
-6. Installeer de CIA met FBI op een New 3DS/New 3DS XL/New 2DS XL met homebrew-ondersteuning. Bewaar de volledige buildlog als de workflow rood wordt; er wordt dan geen succesvolle CIA geclaimd.
+De streamingtransportcode is op de host getest met een echte cataloguslink: metadata, ontsleuteling, lezen over blokgrenzen, willekeurig zoeken, EOF en annuleren. De ontsleutelde bytes zijn onafhankelijk vergeleken. De ARM-build en CIA-verpakking zijn afzonderlijk gecontroleerd. De complete app is nog niet op een echte New 3DS getest.
 
-De workflow gebruikt de officiële devkitPro devkitarm-container en vastgelegde makerom/bannertool-versies. De compiler in het containerlabel `latest` kan veranderen; de werkelijke compilerversie wordt meegeleverd in BUILD_VERSIONS.txt. Het upstream project bevat vooraf gebouwde decoderbibliotheken voor devkitARM r68. Voor een andere ABI kunnen die opnieuw gebouwd moeten worden volgens library/_devkitpro_install.md.
+Streaming ondersteunt publieke losse bestandslinks (`https://mega.nz/file/HANDLE#KEY` en oude `#!HANDLE!KEY`-links), geen mappen of accountlogin. HTTPS-certificaten worden gecontroleerd. Bij gedeeltelijk lezen kan MEGA's volledige bestands-MAC niet worden gecontroleerd; er wordt geen cryptografische volledige-bestandsverificatie geclaimd.
+
+Het videoformaat en de bitrate moeten binnen de decoder- en wifi-capaciteit van de New 3DS passen. Dit converteert geen 1080p/4K-video tijdens het streamen. Gebruik bij te zware bestanden een lichtere MP4 op MEGA of de bestaande SD-voorbereiding. De grootte van een film alleen zegt niet of afspelen lukt.
+
+Thumbnails rechtstreeks uit MEGA, pc-games en boeken zijn nog niet geport. Bestaande voorbereide SD-video's en thumbnails blijven werken. Op 320×240 zijn tekstmaten en aantallen zichtbare kaarten aangepast; dit is geen pixelidentieke desktop-render.
+
+## Installeren en bouwen
+
+Installeer WanagoBack_New3DS_0.3.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
+
+De code staat op de branch `codex/wanagoback-3ds` van `WanagoBack/testing`. De workflow daar compileert alleen code. De originele textures staan uitsluitend in dit bronpakket en het lokaal verpakte CIA-bestand; het 3DSX-bestand uit die workflow bevat deze textures niet.
+
+Voor een volledige lokale build: installeer devkitPro/devkitARM en de vereiste 3DS-bibliotheken (zie Makefile en library/_devkitpro_install.md), voer `python3 tools/install_cia_tools.py` uit en vervolgens `make cia` met `tools/bin` in PATH. Het pakket bevat de volledige gewijzigde frontend, originele upstreamcode, vooraf gebouwde decoderbibliotheken en ROMFS-assets. De officiële devkitPro devkitarm-container is gebruikt voor de ARM-compilatie. De gebruikte compiler staat in BUILD_VERSIONS.txt.
 
 ## Video's voorbereiden — zonder thuisserver
 
@@ -56,7 +67,7 @@ Gebruik een daadwerkelijke videolink, geen webpagina/deellink. Alleen HTTPS met 
 
 ## Validatie en resterende test
 
-Gecontroleerd bij oplevering: Python-syntaxis, conversie van een gegenereerde testvideo, cachebestandsnamen en aanwezigheid van buildinputs. De nieuwe C-frontend is op de host op syntaxis gecontroleerd met platformstubs; dat is geen ARM-linktest. De workflow controleert na compilatie de ARM ELF-identiteit, 3DSX-header en CIA-sectiegrenzen. Geen van die controles bewijst dat audio/video, touchscreen of installatie op hardware al werkt.
+Gecontroleerd: geslaagde ARM-compilatie, ELF-architectuur, lokaal verpakken met makerom en CIA-sectiegrenzen. De SD-voorbereiding is getest met een gegenereerde korte video en bijbehorende thumbnail. De originele textures zijn met hun herkomst vastgelegd in romfs/wgb/provenance.json. Dit bewijst nog niet dat alles op hardware werkt.
 
 Test na de eerste geslaagde build: opstarten, catalogus laden, offline opstart met SD-catalogus, één voorbereide video afspelen met geluid, teruggaan naar bibliotheek, download annuleren en opnieuw starten. Begin met een korte video.
 

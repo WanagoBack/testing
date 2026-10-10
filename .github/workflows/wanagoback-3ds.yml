@@ -46,7 +46,7 @@ jobs:
           test -s WanagoBack.elf
       - uses: actions/upload-artifact@v4
         with:
-          name: WanagoBack-New3DS-0.2-compiled-code
+          name: WanagoBack-New3DS-0.3-compiled-code
           if-no-files-found: error
           path: |
             player/WanagoBack.elf

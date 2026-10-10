@@ -1,6 +1,7 @@
 /* WanagoBack New 3DS prototype. GPL-3.0-or-later; see PORT_README.md. */
 #include "wanagoback.h"
 #include "wgb_skin.h"
+#include "wgb_mega.h"
 #include <math.h>
 #include <ctype.h>
 #include "3ds.h"
@@ -27,6 +28,33 @@ static Thread worker;
 static int job, job_entry, result;
 static char status[180]="Bibliotheek laden...";
 static bool first=true;
+typedef struct {char name[49];uint32_t id;uint8_t avatar;} Profile;
+static Profile profiles[4],editing;
+static int profile_count,active_profile,edit_index=-1;
+static uint32_t next_profile_id=2;
+static const int avatar_images[]={WGB_AV_100,WGB_AV_101,WGB_AV_201,WGB_AV_300,WGB_AV_301,WGB_AV_401,WGB_AV_501,WGB_AV_600,WGB_AV_601,WGB_AV_800,WGB_AV_801,WGB_AV_0000};
+static bool save_profiles(void){
+ FILE* f=fopen(ROOT "profiles.dat.part","wb");if(!f)return false;
+ uint32_t h[4]={0x57475033,(uint32_t)profile_count,(uint32_t)active_profile,next_profile_id};
+ bool ok=fwrite(h,sizeof(h),1,f)==1&&fwrite(profiles,sizeof(profiles),1,f)==1;
+ if(fclose(f))ok=false;if(ok)ok=rename(ROOT "profiles.dat.part",ROOT "profiles.dat")==0;return ok;
+}
+static void load_profiles(void){
+ uint32_t h[4]={0};FILE* f=fopen(ROOT "profiles.dat","rb");bool ok=false;
+ if(f){ok=fread(h,sizeof(h),1,f)==1&&fread(profiles,sizeof(profiles),1,f)==1;fclose(f);}
+ ok=ok&&h[0]==0x57475033&&h[1]>0&&h[1]<=4&&h[2]<h[1]&&h[3]>1;
+ if(ok)for(unsigned i=0;i<h[1];i++){if(!memchr(profiles[i].name,0,49)||!profiles[i].name[0]||profiles[i].avatar>=12||!profiles[i].id||profiles[i].id>=h[3])ok=false;}
+ if(ok){profile_count=(int)h[1];active_profile=(int)h[2];next_profile_id=h[3];}
+ else{memset(profiles,0,sizeof(profiles));strcpy(profiles[0].name,"Samson");profiles[0].avatar=8;profiles[0].id=1;profile_count=1;active_profile=0;save_profiles();}
+}
+static void profile_mark_path(char* out,size_t n,const Entry* e,const char* kind){
+ unsigned id=profiles[active_profile].id;
+ if(id==1){snprintf(out,n,ROOT "%s/%s",kind,e->file);return;}
+ char dir[160];snprintf(dir,sizeof(dir),ROOT "profile_%u",id);mkdir(dir,0777);
+ snprintf(dir,sizeof(dir),ROOT "profile_%u/%s",id,kind);mkdir(dir,0777);
+ snprintf(out,n,"%s/%s",dir,e->file);
+}
+
 
 static void cache_name(Entry* e) {
  uint64_t h=UINT64_C(14695981039346656037);
@@ -126,7 +154,7 @@ static void start_job(int type){
 }
 void Wgb_init(void){
  mkdir("/3ds",0777);mkdir(ROOT,0777);mkdir(ROOT "videos",0777);
- Wskin_init();
+ Wskin_init();load_profiles();
  mkdir(ROOT "favorites",0777);mkdir(ROOT "playlist",0777);mkdir(ROOT "thumbs",0777);
  FILE* f=fopen(ROOT "library.json","rb");
  if(f){char* text=calloc(1,JSON_LIMIT+1);if(text){size_t n=fread(text,1,JSON_LIMIT,f);text[n]=0;int loaded=parse_catalog(text,entries);if(loaded>0)count=loaded;free(text);}fclose(f);}
@@ -134,6 +162,7 @@ void Wgb_init(void){
 }
 bool Wgb_ready(void){return __atomic_load_n(&ready,__ATOMIC_ACQUIRE)!=0;}
 void Wgb_exit(void){
+ Wmega_cancel();
  __atomic_store_n(&ready,0,__ATOMIC_RELEASE);__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);
  if(worker){threadJoin(worker,UINT64_MAX);threadFree(worker);worker=NULL;}
  Wskin_exit();
@@ -159,13 +188,19 @@ static void play_selected(void){
  if(!stat(path,&info)&&info.st_size>0){
   if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();
   if(!Vid_wgb_open(e->file,ROOT "videos/")){Menu_resume();snprintf(status,sizeof(status),"Video kon niet worden geopend.");}
+ }else if(e->source[0]&&strstr(e->source,"mega.")){
+  char stream_path[96];
+  if(!Wmega_path(e->source,stream_path,sizeof(stream_path))){snprintf(status,sizeof(status),"%s",Wmega_error());return;}
+  Wmega_begin();
+  if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();
+  if(!Vid_wgb_open(stream_path,"")){Menu_resume();snprintf(status,sizeof(status),"Video kon niet worden geopend.");}
  }else if(e->url[0])start_job(2);
  else snprintf(status,sizeof(status),"Zet deze video op SD met prepare_sd.py.");
 }
 /* Windows layout: top navigation, character carousel, genre rows and yellow modal. */
 typedef struct {float x,y,w,h;int action,value;} Hit;
 static Hit hits[80];static int hit_count;
-static int screen=0,home_index=0,group_count=0,row_page=0;
+static int screen=7,home_index=0,group_count=0,row_page=0;
 static char groups[64][80],filter[80];
 static int grouped[5][MAX_VIDEOS],group_sizes[5],offsets[5];
 static float visual_offsets[5];
@@ -177,7 +212,21 @@ static const int category_icons[]={WGB_SERIES,WGB_FILM,WGB_KARAOKE,WGB_MUSIC,WGB
 static const uint32_t category_colors[]={0xff9b29c5,0xff0015d3,0xffede5dd,0xff00d797,0xff2ab043};
 static void hit(float x,float y,float w,float h,int action,int value){if(hit_count<80)hits[hit_count++]=(Hit){x,y,w,h,action,value};}
 static float elapsed(uint64_t start){return (float)(osGetTime()-start)/1000.0f;}
-static void change_screen(int next){screen=next;modal=false;row_page=0;scene_time=osGetTime();}
+typedef struct {int screen,home,row,offset[5];} Nav;
+static Nav history[16];static int history_count;
+static void rebuild(void);
+static void set_screen(int next){screen=next;modal=false;row_page=0;pending_action=-1;hit_count=0;scene_time=osGetTime();}
+static void change_screen(int next){
+ if(screen!=next){if(history_count==16){memmove(history,history+1,15*sizeof(Nav));history_count--;}
+ Nav* n=&history[history_count++];n->screen=screen;n->home=home_index;n->row=row_page;memcpy(n->offset,offsets,sizeof(offsets));}
+ set_screen(next);
+}
+static void go_back(void){
+ pending_action=-1;__atomic_store_n(&pending_touch,0,__ATOMIC_RELAXED);
+ if(modal){modal=false;screen=return_screen;hit_count=0;rebuild();return;}
+ if(history_count){Nav n=history[--history_count];set_screen(n.screen);home_index=n.home;row_page=n.row;memcpy(offsets,n.offset,sizeof(offsets));for(int i=0;i<5;i++)visual_offsets[i]=(float)offsets[i];rebuild();}
+ else if(screen!=7){set_screen(7);rebuild();}
+}
 static int category(const Entry* e){
  if(strstr(e->category,"karaoke"))return 2;
  if(strstr(e->category,"film"))return 1;
@@ -185,8 +234,8 @@ static int category(const Entry* e){
  if(strstr(e->category,"special"))return 4;
  return 0;
 }
-static bool marked(const Entry* e,const char* kind){char p[200];struct stat s;snprintf(p,sizeof(p),ROOT "%s/%s",kind,e->file);return !stat(p,&s);}
-static void toggle(const Entry* e,const char* kind){char p[200];snprintf(p,sizeof(p),ROOT "%s/%s",kind,e->file);if(marked(e,kind))remove(p);else{FILE* f=fopen(p,"wb");if(f)fclose(f);}}
+static bool marked(const Entry* e,const char* kind){char p[200];struct stat s;profile_mark_path(p,sizeof(p),e,kind);return !stat(p,&s);}
+static void toggle(const Entry* e,const char* kind){char p[200];profile_mark_path(p,sizeof(p),e,kind);if(marked(e,kind))remove(p);else{FILE* f=fopen(p,"wb");if(f)fclose(f);}}
 static bool matches(const char* title,const char* needle){
  if(!*needle)return true;
  for(;*title;title++){const unsigned char*a=(const unsigned char*)title,*b=(const unsigned char*)needle;
@@ -194,25 +243,28 @@ static bool matches(const char* title,const char* needle){
  }return false;
 }
 static void rebuild(void){
- group_count=0;memset(group_sizes,0,sizeof(group_sizes));
+ static const char* all[]={"SamsonGert","Plop","FredSamson","MegaMindy","K3","Heidi","InDeKijker","Rox","PietPiraat","Maya","Prinsessia","Bumba","Wickie"};
+ group_count=13;for(int i=0;i<13;i++)snprintf(groups[i],80,"%s",all[i]);memset(group_sizes,0,sizeof(group_sizes));
  for(int i=0;i<count;i++){
   int g=0;for(;g<group_count;g++)if(!strcmp(groups[g],entries[i].folder))break;
+  if(!strcmp(entries[i].folder,"FeaturedItems"))continue;
   if(g==group_count&&group_count<64)snprintf(groups[group_count++],80,"%s",entries[i].folder);
  }
  if(home_index>=group_count)home_index=0;
  for(int i=0;i<count;i++){
   bool use=screen==3?marked(&entries[i],"favorites"):screen==4?marked(&entries[i],"playlist"):
-    screen==6?matches(entries[i].title,filter):(group_count&&!strcmp(groups[home_index],entries[i].folder));
+    screen==6?matches(entries[i].title,filter):(group_count&&(!strcmp(groups[home_index],entries[i].folder)||(!strcmp(groups[home_index],"InDeKijker")&&!strcmp(entries[i].folder,"FeaturedItems"))));
   if(use){int c=category(&entries[i]);grouped[c][group_sizes[c]++]=i;}
  }
  for(int c=0;c<5;c++){int max=group_sizes[c]>2?group_sizes[c]-2:0;if(offsets[c]>max)offsets[c]=max;if(offsets[c]<0)offsets[c]=0;}
 }
-static int character_image(const char* folder){if(!strcmp(folder,"Plop"))return WGB_PLOP;if(!strcmp(folder,"SamsonGert"))return WGB_SAMSON;return WGB_FEATURED;}
-static const char* character_name(const char* folder){if(!strcmp(folder,"InDeKijker"))return "In de kijker";if(!strcmp(folder,"SamsonGert"))return "Samson en Gert";return folder;}
+static const char* extra_characters[]={"FredSamson","MegaMindy","K3","Heidi","Rox","PietPiraat","Maya","Prinsessia","Bumba","Wickie"};
+static int character_image(const char* folder){if(!strcmp(folder,"Plop"))return WGB_PLOP;if(!strcmp(folder,"SamsonGert"))return WGB_SAMSON;for(int i=0;i<10;i++)if(!strcmp(folder,extra_characters[i]))return WGB_CHAR_FREDSAMSON+i;return WGB_FEATURED;}
+static const char* character_name(const char* folder){if(!strcmp(folder,"InDeKijker"))return "In de kijker";if(!strcmp(folder,"SamsonGert"))return "Samson en Gert";if(!strcmp(folder,"Plop"))return "Kabouter Plop";if(!strcmp(folder,"FredSamson"))return "Fred en Samson";if(!strcmp(folder,"MegaMindy"))return "Mega Mindy";if(!strcmp(folder,"PietPiraat"))return "Piet Piraat";return folder;}
 static void icon(int image,float x,float y,float size,int action,int value){float inset=(pending_action==action&&pending_value==value)?size*.04f:0;Wskin_image(image,x+inset,y+inset,size-2*inset,size-2*inset);hit(x-2,y-2,size+4,size+4,action,value);}
 static void navbar(void){
  Wskin_rect(0,0,320,30,0xcfffffff);
- icon(WGB_BACK,3,3,24,1,0);icon(WGB_AVATAR,33,3,24,2,0);icon(WGB_HOME,63,3,24,2,0);
+ icon(WGB_BACK,3,3,24,1,0);icon(avatar_images[profiles[active_profile].avatar],33,3,24,17,0);icon(WGB_HOME,63,3,24,2,0);
  icon(WGB_FAVORITES,218,3,24,3,0);icon(WGB_SEARCH,251,3,24,4,0);icon(WGB_SETTINGS,284,3,24,5,0);
 }
 static void text_center(const char* s,float x,float y,float w,float size,uint32_t color){float tw=Wskin_width(s,size);Wskin_text(s,x+fmaxf(0,(w-tw)/2),y,size,color,w,1);}
@@ -254,6 +306,7 @@ static void draw_browse(void){
  text_center(screen==3?"Favorieten":screen==4?"Mijn playlist":screen==6?"Zoeken":(group_count?character_name(groups[home_index]):"Video's"),8,221,96,7,0xff242424);
 }
 static void draw_modal(void){
+ icon(WGB_BACK,3,3,26,1,0);
  Entry* e=&entries[selected];Wskin_rect(0,0,320,240,0x99000000);
  float scale=bounce(),w=296*scale,h=142*scale,x=(320-w)/2,y=(240-h)/2;
  Wskin_image(WGB_PANEL,x,y,w,h);
@@ -265,7 +318,7 @@ static void draw_modal(void){
  icon(WGB_PLAY,99,155,29,11,0);
  if(marked(e,"favorites"))Wskin_round(142,154,31,31,5,0x99ffffff);
  icon(WGB_FAVORITES,143,155,29,12,0);icon(WGB_PLAYLIST,187,155,29,13,0);
- if(strstr(status,"Zet ")||strstr(status,"Download"))Wskin_text(status,18,216,7,0xff202020,284,2);
+ if(status[0])Wskin_text(status,18,216,7,0xff202020,284,2);
 }
 static void settings(void){
  Wskin_image(WGB_PANEL,15,55,290,151);text_center("INSTELLINGEN",35,69,250,13,0xff222222);
@@ -273,29 +326,57 @@ static void settings(void){
  icon(WGB_PLAYLIST,140,108,40,15,0);Wskin_text("Mijn playlist",131,152,8,0xff222222,80,1);
  icon(WGB_CLOSE,233,108,40,16,0);Wskin_text("Afsluiten",227,152,8,0xff222222,70,1);
 }
+static void text_button(const char* label,float x,float y,float w,int action,int value){Wskin_round(x,y,w,23,5,0xff00ccff);text_center(label,x+3,y+6,w-6,8,0xff222222);hit(x,y,w,23,action,value);}
+static void draw_profiles(void){
+ text_center("KIES EEN PROFIEL",15,13,290,16,0xff242424);
+ if(history_count)icon(WGB_BACK,3,3,25,1,0);
+ for(int i=0;i<4;i++){float x=38+(i%2)*144,y=44+(i/2)*96;
+  Wskin_round(x,y,102,87,8,0xddffffff);
+  if(i<profile_count){Wskin_image(avatar_images[profiles[i].avatar],x+19,y+3,64,64);text_center(profiles[i].name,x+4,y+69,94,9,0xff222222);hit(x,y,102,87,20,i);icon(WGB_SETTINGS,x+80,y+3,17,21,i);}
+  else{Wskin_image(WGB_ADD_USER,x+28,y+8,46,46);text_center("NIEUW PROFIEL",x+3,y+64,96,8,0xff222222);hit(x,y,102,87,22,0);}
+ }
+}
+static void draw_profile_editor(void){
+ icon(WGB_BACK,3,3,26,1,0);text_center(edit_index<0?"NIEUW PROFIEL":"PROFIEL AANPASSEN",32,13,280,13,0xff222222);
+ icon(WGB_PROFILE_LEFT,52,80,30,23,-1);Wskin_image(avatar_images[editing.avatar],112,44,96,96);icon(WGB_PROFILE_RIGHT,238,80,30,23,1);
+ Wskin_round(70,146,180,26,5,0xeeffffff);text_center(editing.name[0]?editing.name:"Tik om je naam in te vullen",75,154,170,9,0xff222222);hit(70,146,180,26,24,0);
+ text_button("ANNULEREN",39,186,109,1,0);text_button("OPSLAAN",172,186,109,25,0);
+ if(edit_index>=0&&profile_count>1)text_button("VERWIJDEREN",106,214,108,26,0);
+}
+static void edit_profile(int i){edit_index=i;memset(&editing,0,sizeof(editing));if(i>=0)editing=profiles[i];else{editing.avatar=8;editing.id=next_profile_id;}change_screen(8);}
+static void choose_profile_name(void){SwkbdState k;swkbdInit(&k,SWKBD_TYPE_NORMAL,2,12);swkbdSetHintText(&k,"Naam van je profiel");swkbdSetInitialText(&k,editing.name);swkbdSetValidation(&k,SWKBD_NOTEMPTY_NOTBLANK,0,0);char name[49]={0};if(swkbdInputText(&k,name,sizeof(name))==SWKBD_BUTTON_CONFIRM)snprintf(editing.name,sizeof(editing.name),"%s",name);}
 static void dispatch(int action,int value){
  switch(action){
- case 1:if(modal)modal=false;else change_screen(0);break;
+ case 1:go_back();break;
  case 2:change_screen(0);break;
  case 3:change_screen(3);rebuild();break;
  case 4:{SwkbdState keyboard;swkbdInit(&keyboard,SWKBD_TYPE_NORMAL,2,79);swkbdSetHintText(&keyboard,"Zoek een video");if(swkbdInputText(&keyboard,filter,sizeof(filter))==SWKBD_BUTTON_CONFIRM){change_screen(6);rebuild();}break;}
  case 5:change_screen(5);break;
- case 6:home_index=value;change_screen(1);memset(offsets,0,sizeof(offsets));memset(visual_offsets,0,sizeof(visual_offsets));rebuild();break;
+ case 6:change_screen(1);home_index=value;memset(offsets,0,sizeof(offsets));memset(visual_offsets,0,sizeof(visual_offsets));rebuild();break;
  case 7:if(!group_count)break;home_index+=value;if(home_index<0)home_index=0;if(home_index>=group_count)home_index=group_count-1;scene_time=osGetTime();break;
  case 8:selected=value;return_screen=screen;modal=true;scene_time=osGetTime();break;
  case 9:if(value<0){if(row_page>0)row_page--;}else{int n=0;for(int i=0;i<5;i++)if(group_sizes[i])n++;if(row_page+2<n)row_page++;}break;
  case 10:modal=false;screen=return_screen;rebuild();break;
- case 11:loading_time=osGetTime();play_selected();break;
+ case 11:if(worker){__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);snprintf(status,sizeof(status),"Even wachten tot verversen gestopt is.");}else{loading_time=osGetTime();play_selected();}break;
  case 12:toggle(&entries[selected],"favorites");break;
  case 13:toggle(&entries[selected],"playlist");break;
  case 14:start_job(1);break;
  case 15:change_screen(4);rebuild();break;
  case 16:Menu_set_must_exit_flag(true);break;
+ case 17:change_screen(7);break;
+ case 20:if(value<profile_count){active_profile=value;save_profiles();history_count=0;set_screen(0);rebuild();}break;
+ case 21:if(value<profile_count)edit_profile(value);break;
+ case 22:if(profile_count<4)edit_profile(-1);break;
+ case 23:editing.avatar=(uint8_t)((editing.avatar+value+12)%12);break;
+ case 24:choose_profile_name();break;
+ case 25:if(!editing.name[0]){choose_profile_name();if(!editing.name[0])break;}if(edit_index<0&&profile_count<4){profiles[profile_count++]=editing;next_profile_id++;}else if(edit_index>=0)profiles[edit_index]=editing;if(!save_profiles())snprintf(status,sizeof(status),"Profiel opslaan mislukt. Controleer de SD-kaart.");go_back();break;
+ case 26:change_screen(9);break;
+ case 27:if(edit_index>=0&&profile_count>1){for(int i=edit_index;i+1<profile_count;i++)profiles[i]=profiles[i+1];profile_count--;if(active_profile>edit_index)active_profile--;else if(active_profile==edit_index)active_profile=0;save_profiles();go_back();go_back();}break;
  }
 }
 static void handle_touch(unsigned int packet){
  if(!(packet&(1u<<18)))return;int x=(int)(packet&511),y=(int)((packet>>9)&255);int gesture=(int)(packet>>19);
- if(gesture&& !modal &&screen!=0&&screen!=5){
+ if(gesture&& !modal &&(screen==1||screen==3||screen==4||screen==6)){
   if(gesture==3||gesture==4){dispatch(9,gesture==3?1:-1);return;}
   int row=0,target=(y-36)/91+row_page;
   for(int c=0;c<5;c++)if(group_sizes[c]){if(row++==target){offsets[c]+=(gesture==1?1:-1);rebuild();break;}}return;
@@ -312,8 +393,9 @@ void Wgb_main(void){
   else snprintf(status,sizeof(status),"%s",job==1?"Geen verbinding. De SD-bibliotheek blijft beschikbaar.":"Download mislukt of geannuleerd.");
  }
  unsigned int keys=__atomic_exchange_n(&pending_keys,0,__ATOMIC_ACQUIRE),touch=__atomic_exchange_n(&pending_touch,0,__ATOMIC_ACQUIRE);
- if(worker){if(keys&2)__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);}
+ if(worker&&job==2){if((keys&2)||((touch&(1u<<18))&&(touch&511)<40&&((touch>>9)&255)<36))__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);}
  else{
+  if(worker&&(keys&2))__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);
   if(pending_action>=0&&osGetTime()-pressed_at>=250){int a=pending_action,v=pending_value;pending_action=-1;dispatch(a,v);}
   if(pending_action<0)handle_touch(touch);
   if(keys&2)dispatch(1,0);if(keys&16)dispatch(14,0);if(keys&64)dispatch(16,0);
@@ -328,11 +410,11 @@ void Wgb_main(void){
  if(worker&&job==2)Wskin_loading(elapsed(loading_time),"Even geduld...",400,240);
  else{Wskin_image(WGB_BACKGROUND,0,-30,400,300);text_center("WANAGOBACK",0,93,400,24,0xffffffff);text_center("Kies je video op het touchscreen",0,137,400,11,0xff303030);}
  Draw_screen_ready(DRAW_SCREEN_BOTTOM,0xffe8bc31);Wskin_image(WGB_BACKGROUND,0,0,320,240);
- if((worker&&!count)||(worker&&job==2)){
-  Wskin_loading(elapsed(loading_time),"Even geduld...",320,240);
+ if((worker&&!count&&screen<7)||(worker&&job==2)){
+  Wskin_loading(elapsed(loading_time),"Even geduld...",320,240);Wskin_image(WGB_BACK,3,3,27,27);
   if(job==2){char bytes[70];snprintf(bytes,sizeof(bytes),"%u KiB ontvangen - B: annuleren",__atomic_load_n(&downloaded,__ATOMIC_RELAXED));text_center(bytes,0,216,320,7,0xff222222);}
  }else{
-  navbar();if(screen==0)draw_home();else if(screen==5)settings();else draw_browse();
+  if(screen==7)draw_profiles();else if(screen==8)draw_profile_editor();else if(screen==9){icon(WGB_BACK,3,3,26,1,0);Wskin_image(WGB_PANEL,15,65,290,120);text_center("PROFIEL VERWIJDEREN?",30,88,260,14,0xff222222);text_button("ANNULEREN",40,139,108,1,0);text_button("VERWIJDEREN",172,139,108,27,0);}else{navbar();if(screen==0)draw_home();else if(screen==5)settings();else draw_browse();}
   if(modal){hit_count=0;draw_modal();}
   if(!count)Wskin_text(status,15,219,7,0xff222222,290,2);
  }
@@ -349,7 +431,7 @@ void Wgb_video_draw(double position,double duration,bool paused,bool loading){
  snprintf(t,sizeof(t),"%u:%02u / %u:%02u",p/60,p%60,d/60,d%60);text_center(t,25,170,270,9,0xffffffff);
  Wskin_round(15,209,290,8,4,0xff555555);float fraction=duration>0?(float)fmin(1,position/duration):0;
  if(fraction>0)Wskin_round(15,209,fmaxf(8,290*fraction),8,4,0xff00cdff);
- text_center(loading?"Even geduld...":"A: pauze   B: terug   tik op de balk om te spoelen",0,228,320,6.5f,0xffffffff);
+ text_center(Wmega_error()[0]?Wmega_error():(loading||Wmega_buffering())?"Even geduld...":"A: pauze   B: terug   tik op de balk om te spoelen",0,228,320,6.5f,0xffffffff);
 }
 int Wgb_video_input(const Hid_info* key,double* value){
  if(DEF_HID_PHY_PR(key->b))return 2;if(DEF_HID_PHY_PR(key->a))return 1;
