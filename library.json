@@ -36,7 +36,15 @@
       "description": "Klus speelt verpleger in zijn kabouterziekenhuis",
       "seasonNumber": 4,
       "episode": 270,
-      "megaUrl": "https://mega.nz/file/RAhyTYTR#QVJNPNj49FbNLIN3zCCO0X3AD8MQoFmys9Wimy_OHjk"
+      "megaUrl": "https://mega.nz/file/RAhyTYTR#QVJNPNj49FbNLIN3zCCO0X3AD8MQoFmys9Wimy_OHjk",
+      "megaUrl3ds": "https://mega.nz/file/xIJSBapJ#0_KXGcJBzQMh4LZK8HqEZKlnLDhDxFhFgWosNJspRT8",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/xIJSBapJ#0_KXGcJBzQMh4LZK8HqEZKlnLDhDxFhFgWosNJspRT8"
+        }
+      ]
     },
     {
       "folder": "Plop",
