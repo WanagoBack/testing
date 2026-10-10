@@ -65,8 +65,9 @@ void Wskin_thumb(const char* file,float x,float y,float w,float h){
 }
 void Wskin_loading(float seconds,const char* text,float w,float h){
  Wskin_image(WGB_SUN,-w*.02f,-h*.02f,w*1.04f,h*1.04f);
- float bob=4*(1-cosf(seconds*3.14159265f/3));
- Wskin_image(WGB_LOADING_PLOP,w*.68f,h*.23f-bob,w*.28f,h*.68f);
+ float bob=1.6f*(1-cosf(seconds*3.14159265f/3));
+ float pw=w*.3125f,ph=pw*114.0f/140.0f;
+ Wskin_image(WGB_LOADING_PLOP,w-pw-8,h*.96f-ph-bob,pw,ph);
  float cloud=3.2f*sinf(seconds*3.14159265f/4);
  Wskin_image(WGB_CLOUDS,-8+cloud,h*.79f,w+16,h*.30f);
  float pulse=.98f+.02f*(1-cosf(seconds*3.14159265f));float size=12*pulse;

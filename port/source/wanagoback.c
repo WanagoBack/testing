@@ -262,9 +262,9 @@ static void draw_modal(void){
  Wskin_text(e->title,x+124,y+21,9,0xff202020,w-141,2);
  Wskin_text(e->description,x+124,y+48,7,0xff303030,w-141,3);
  Wskin_text(e->meta,x+124,y+82,6,0xff726231,w-141,1);
- icon(WGB_PLAY,99,166,29,11,0);
- if(marked(e,"favorites"))Wskin_round(142,165,31,31,5,0x99ffffff);
- icon(WGB_FAVORITES,143,166,29,12,0);icon(WGB_PLAYLIST,187,166,29,13,0);
+ icon(WGB_PLAY,99,155,29,11,0);
+ if(marked(e,"favorites"))Wskin_round(142,154,31,31,5,0x99ffffff);
+ icon(WGB_FAVORITES,143,155,29,12,0);icon(WGB_PLAYLIST,187,155,29,13,0);
  if(strstr(status,"Zet ")||strstr(status,"Download"))Wskin_text(status,18,216,7,0xff202020,284,2);
 }
 static void settings(void){
@@ -340,18 +340,16 @@ void Wgb_main(void){
 }
 void Wgb_video_draw(double position,double duration,bool paused,bool loading){
  Draw_screen_ready(DRAW_SCREEN_BOTTOM,0xff000000);
- Wskin_image(WGB_BACKGROUND,0,0,320,240);Wskin_rect(0,0,320,30,0xcfffffff);
- Wskin_image(WGB_BACK,3,3,24,24);text_center("WANAGOBACK",40,8,240,12,0xff222222);
- Wskin_image(WGB_PANEL,12,52,296,139);
- Wskin_text(count?entries[selected].title:"Video",32,69,13,0xff202020,255,2);
+ Wskin_image(WGB_BACK,3,3,24,24);
+ Wskin_text(count?entries[selected].title:"Video",40,7,10,0xffffffff,271,2);
  Wskin_image(WGB_PLAY,139,116,42,42);
  if(!paused){Wskin_rect(151,126,5,23,0xfff8f8f8);Wskin_rect(164,126,5,23,0xfff8f8f8);}
  Wskin_image(WGB_LEFT,87,125,23,23);Wskin_image(WGB_RIGHT,211,125,23,23);
  char t[64];unsigned int p=(unsigned int)fmax(0,position/1000),d=(unsigned int)fmax(0,duration/1000);
- snprintf(t,sizeof(t),"%u:%02u / %u:%02u",p/60,p%60,d/60,d%60);text_center(t,25,170,270,9,0xff303030);
- Wskin_round(15,209,290,8,4,0xffa39074);float fraction=duration>0?(float)fmin(1,position/duration):0;
+ snprintf(t,sizeof(t),"%u:%02u / %u:%02u",p/60,p%60,d/60,d%60);text_center(t,25,170,270,9,0xffffffff);
+ Wskin_round(15,209,290,8,4,0xff555555);float fraction=duration>0?(float)fmin(1,position/duration):0;
  if(fraction>0)Wskin_round(15,209,fmaxf(8,290*fraction),8,4,0xff00cdff);
- text_center(loading?"Even geduld...":"A: pauze   B: terug   tik op de balk om te spoelen",0,228,320,6.5f,0xff242424);
+ text_center(loading?"Even geduld...":"A: pauze   B: terug   tik op de balk om te spoelen",0,228,320,6.5f,0xffffffff);
 }
 int Wgb_video_input(const Hid_info* key,double* value){
  if(DEF_HID_PHY_PR(key->b))return 2;if(DEF_HID_PHY_PR(key->a))return 1;
