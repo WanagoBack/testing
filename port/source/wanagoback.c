@@ -197,14 +197,14 @@ static void play_selected(void){
  if(!count)return;Wgb_video_stage("Afspelen aangevraagd");Entry* e=&entries[selected];char path[160];struct stat info;
  snprintf(path,sizeof(path),ROOT "videos/%s",e->file);
  if(!stat(path,&info)&&info.st_size>0){
-  Wmusic_stop();Wmega_begin();
+  Wmusic_stop();Wskin_video_mode(true);Wmega_begin();
   if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();
   if(!Vid_wgb_open(e->file,ROOT "videos/")){Menu_resume();snprintf(status,sizeof(status),"Video kon niet worden geopend.");}
  }else if(e->url[0]&&!e->stream[0])start_job(2);
  else if(e->stream[0]||(e->source[0]&&strstr(e->source,"mega."))){
   char stream_path[96];
   if(!Wmega_path(e->stream[0]?e->stream:e->source,stream_path,sizeof(stream_path))){snprintf(status,sizeof(status),"%s",Wmega_error());return;}
-  Wmusic_stop();Wmega_begin();
+  Wmusic_stop();Wskin_video_mode(true);Wmega_begin();
   if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();
   if(!Vid_wgb_open(stream_path,"")){Menu_resume();snprintf(status,sizeof(status),"Video kon niet worden geopend.");}
  }else if(e->url[0])start_job(2);
@@ -473,7 +473,7 @@ static void handle_touch(unsigned int packet){
  for(int i=hit_count-1;i>=0;i--){Hit* h=&hits[i];if(x>=h->x&&x<h->x+h->w&&y>=h->y&&y<h->y+h->h){pending_action=h->action;pending_value=h->value;pressed_at=osGetTime();break;}}
 }
 void Wgb_main(void){
- Wmusic_tick();
+ Wskin_video_mode(false);Wmusic_tick();
  if(first){first=false;loading_time=scene_time=osGetTime();rebuild();start_job(1);}
  if(worker&&__atomic_load_n(&done,__ATOMIC_ACQUIRE)){
   threadJoin(worker,UINT64_MAX);threadFree(worker);worker=NULL;

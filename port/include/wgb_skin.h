@@ -11,3 +11,5 @@ void Wskin_text(const char* text,float x,float y,float size,uint32_t color,float
 float Wskin_width(const char* text,float size);
 void Wskin_thumb(const char* file,float x,float y,float w,float h);
 void Wskin_loading(float seconds,const char* text,float w,float h);
+
+void Wskin_video_mode(bool active);

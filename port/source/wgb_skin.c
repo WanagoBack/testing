@@ -32,6 +32,17 @@ void Wskin_init(void){
  solid=Draw_get_empty_image();
  for(int i=0;i<WGB_ASSET_COUNT;i++){char path[160];snprintf(path,sizeof(path),"romfs:/wgb/%s",wgb_asset_names[i]);loaded[i]=load_texture(path,&images[i]);}
 }
+static bool video_mode;
+void Wskin_video_mode(bool active){
+ if(video_mode==active)return;
+ C3D_FrameSync();video_mode=active;
+ if(active){
+  for(int i=0;i<WGB_ASSET_COUNT;i++)if(i!=WGB_BACK&&i!=WGB_PLAY&&i!=WGB_LEFT&&i!=WGB_RIGHT&&i!=WGB_FONT&&loaded[i]){Draw_texture_free(&images[i]);loaded[i]=false;}
+  for(int i=0;i<8;i++){if(thumbs[i].loaded)Draw_texture_free(&thumbs[i].image);memset(&thumbs[i],0,sizeof(thumbs[i]));}
+ }else{
+  for(int i=0;i<WGB_ASSET_COUNT;i++)if(!loaded[i]){char path[160];snprintf(path,sizeof(path),"romfs:/wgb/%s",wgb_asset_names[i]);loaded[i]=load_texture(path,&images[i]);}
+ }
+}
 void Wskin_exit(void){for(int i=0;i<WGB_ASSET_COUNT;i++)if(loaded[i])Draw_texture_free(&images[i]);for(int i=0;i<8;i++)if(thumbs[i].loaded)Draw_texture_free(&thumbs[i].image);}
 void Wskin_image(int id,float x,float y,float w,float h){if(id>=0&&id<WGB_ASSET_COUNT&&loaded[id])Draw_texture(&images[id],0,x,y,w,h);}
 void Wskin_rect(float x,float y,float w,float h,uint32_t color){Draw_texture(&solid,color,x,y,w,h);}

@@ -17,6 +17,10 @@ De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal v
 
 ## Nieuw in 0.5
 
+Tijdens video worden de menu-textures en thumbnailcache na GPU-synchronisatie vrijgegeven; alleen de bediening en het lettertype blijven staan. Bij terugkeer worden de menu-assets herladen. De oude onderliggende debug/bedieningsinterface wordt tijdens native weergave niet meer getekend (foutmeldingen blijven bereikbaar). De herbufferdrempel is 12 in plaats van 48 gedecodeerde frames; dit verlaagt wachttijd, maar kan op een trage verbinding vaker herbufferen. Dit zijn concrete aanpassingen, geen op hardware gemeten FPS-winst.
+
+3D-weergave en de automatische 800px-modus zijn uitgeschakeld. De renderer blijft op 400x240 in 2D, ongeacht de 3D-schuif. Voor native afspelen wordt slechts één videotrack gedecodeerd.
+
 Onderzoek naar de gemelde crash bij In de kijker: de netwerklees- en opentaken hadden elk 64 KiB stack, terwijl ze nu ook HTTPS uitvoeren. Die taken krijgen 256 KiB. Dit is een voorzorg tegen stackuitputting, geen bevestigde diagnose van de crash. `3ds/WanagoBack/last_playback.txt` bewaart titel en laatste opstartstap (geen bronlinks/sleutels). De specifieke crash is nog niet op hardware gereproduceerd.
 
 De oorspronkelijke fullscreen-timer dimde en schakelde het onderste scherm uit. Bij native WanagoBack-video blijft het touchscreen nu ingeschakeld, met dezelfde helderheid als het bovenste scherm. Terug, pauze en spoelen blijven zichtbaar.
