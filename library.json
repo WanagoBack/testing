@@ -215,7 +215,15 @@
       "category": "films",
       "description": "Plop en zijn vrienden proberen Kwispel de hond terug naar het baasje te brengen",
       "year": 2004,
-      "megaUrl": "https://mega.nz/file/Fq4lmZjK#4kxio79e_2nxlyNeZeBsjvxjY0CKiFbA0hRpZFotpmA"
+      "megaUrl": "https://mega.nz/file/Fq4lmZjK#4kxio79e_2nxlyNeZeBsjvxjY0CKiFbA0hRpZFotpmA",
+      "megaUrl3ds": "https://mega.nz/file/FIYjSAAL#Y10cYUeFuFl29qeKKOzwJtiQs2fWQ1j-11gNE6BBErg",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/FIYjSAAL#Y10cYUeFuFl29qeKKOzwJtiQs2fWQ1j-11gNE6BBErg"
+        }
+      ]
     },
     {
       "folder": "Plop",
