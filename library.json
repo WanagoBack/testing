@@ -139,7 +139,15 @@
       "folder": "InDeKijker",
       "title": "Plop RP - Klus wil vliegen trailer",
       "description": "Oude promotie voor Plop RP",
-      "megaUrl": "https://mega.nz/file/4F5XnbYL#qLjb5hUN3WqBaEhk52Y2kKQqB3HN4I7CAKspJwLh7rA"
+      "megaUrl": "https://mega.nz/file/4F5XnbYL#qLjb5hUN3WqBaEhk52Y2kKQqB3HN4I7CAKspJwLh7rA",
+      "megaUrl3ds": "https://mega.nz/file/5ZIi0Qxb#tZmVgfCyehUkcNHoZO1vm6OYFZfTkeYNLoQgwkc_0RA",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/5ZIi0Qxb#tZmVgfCyehUkcNHoZO1vm6OYFZfTkeYNLoQgwkc_0RA"
+        }
+      ]
     },
     {
       "folder": "InDeKijker",
