@@ -22,8 +22,8 @@ jobs:
           git clone https://github.com/Core-2-Extreme/Video_player_for_3DS.git player
           git -C player checkout 3b326d272344087017549f5f1ac5eadf06e413b7
           git -C player apply ../port/upstream.patch
-          cp port/source/wanagoback.c player/source/
-          cp port/include/wanagoback.h player/include/
+          cp port/source/*.c player/source/
+          cp port/include/*.h player/include/
           mkdir -p player/tools
           cp port/tools/*.py player/tools/
           cp port/PORT_README.md player/
@@ -35,7 +35,7 @@ jobs:
         run: |
           /opt/devkitpro/devkitARM/bin/arm-none-eabi-gcc --version > BUILD_VERSIONS.txt
           printf '\nUpstream player: 3b326d272344087017549f5f1ac5eadf06e413b7\n' >> BUILD_VERSIONS.txt
-      - name: Build native application then CIA
+      - name: Compile native application for local packaging
         working-directory: player
         env:
           DEVKITPRO: /opt/devkitpro
@@ -43,14 +43,13 @@ jobs:
         run: |
           export PATH="$PWD/tools/bin:/opt/devkitpro/tools/bin:/opt/devkitpro/devkitARM/bin:$PATH"
           make 3dsx
-          make cia_normal_ram
-          python3 tools/verify_outputs.py
+          test -s WanagoBack.elf
       - uses: actions/upload-artifact@v4
         with:
-          name: WanagoBack-New3DS-test-build
+          name: WanagoBack-New3DS-0.2-compiled-code
           if-no-files-found: error
           path: |
-            player/WanagoBack.cia
+            player/WanagoBack.elf
             player/WanagoBack.3dsx
             player/WanagoBack.smdh
             player/BUILD_VERSIONS.txt

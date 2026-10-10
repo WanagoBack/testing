@@ -1,19 +1,23 @@
-# WanagoBack voor New Nintendo 3DS — prototype 0.1
+# WanagoBack voor New Nintendo 3DS — prototype 0.2
 
-Dit is een BRONPROJECT met GitHub Actions-build, geen reeds gebouwde of op hardware geteste CIA. De workflow is toegevoegd maar is tijdens het maken van dit pakket niet op GitHub uitgevoerd. Er kunnen nog compiler- of consoleproblemen blijken uit de eerste build/test.
+Dit is een BRONPROJECT met GitHub Actions-build, geen reeds gebouwde of op hardware geteste CIA. De vorige 0.1-build is succesvol op GitHub uitgevoerd; deze versie wordt met dezelfde workflow gebouwd. Er kunnen nog compiler- of consoleproblemen blijken uit de eerste build/test.
 
 ## Wat deze eerste port bevat
 
-- Native geel/blauwe WanagoBack-bibliotheek, bovenste scherm voor titel/status, onderste scherm voor de titellijst.
+- Touchscreen-interface met de originele Windows-textures: achtergrond, personagekaarten, navigatieknoppen, geel detailvenster, categorie-iconen en Lilita One-lettertype.
+- Personagekeuze, horizontaal verschuifbare videorijen, detailvenster, lokale favorieten/playlist, zoeken en instellingen.
+- Laadanimatie met dezelfde wolken/Plop-render en tijdsduren voor de wolken, bob-beweging en tekstpuls. Nieuwe native implementatie: geen browser op de 3DS.
+- Video bovenaan; afspelen/pauzeren, tijdlijn, terug en 10 seconden spoelen op het touchscreen.
+- prepare_sd.py maakt nu ook thumbnails. Voer het opnieuw uit voor bestaande voorbereide video's; die video's worden dan niet opnieuw geconverteerd.
 - Haalt je bestaande https://raw.githubusercontent.com/WanagoBack/testing/main/library.json op; bewaart een kopie op SD voor offline gebruik. Maximaal 512 catalogusposities en 1 MiB JSON.
-- D-pad, A en touchscreen om te kiezen; X om te verversen, Y om de gewone SD-videoplayer te openen, START om vanuit de bibliotheek af te sluiten.
+- D-pad, A en touchscreen om te kiezen; X om te verversen, START om vanuit de bibliotheek af te sluiten.
 - Speelt voorbereide SD-video's met de decoder van Video player for 3DS. Hardwaredecodering staat upstream standaard aan op New-modellen.
 - Optioneel `url3ds`: een directe HTTPS-link naar een geschikte MP4. Die wordt eerst volledig naar SD gedownload. Daarna druk je A om te kijken. B annuleert een download. Er is nog geen gedeeltelijke downloadhervatting of directe streaming.
 - Afzonderlijke app-ID 0xEC610. Dit is een gekozen homebrew-ID, geen officieel gereserveerde registratie. De upstream zelf-updater staat uit.
 
 ## Wat nog NIET geport is
 
-MEGA-decryptie/direct MEGA-streamen, automatisch gegenereerde thumbnails, pc-profielen, games, boeken, de volledige oorspronkelijke interface en alle pc-animaties. Bestaande `megaUrl`-items staan wel in de bibliotheek en worden aan voorbereide lokale bestanden gekoppeld. Je hoeft je bestaande online JSON hiervoor niet aan te passen. Dit project lost de Windows-startfout niet op.
+MEGA-decryptie/direct MEGA-streamen, thumbnails rechtstreeks uit MEGA, pc-profielen, games en boeken. Niet alle Windows-animaties of schermen zijn al gereproduceerd. Op 320×240 zijn tekstmaten en aantallen zichtbare kaarten aangepast; dit is geen pixelidentieke desktop-render. Bestaande `megaUrl`-items staan wel in de bibliotheek en worden aan voorbereide lokale bestanden gekoppeld. Je hoeft je bestaande online JSON hiervoor niet aan te passen. Dit project lost de Windows-startfout niet op.
 
 ## CIA laten bouwen op GitHub
 

@@ -1,5 +1,8 @@
 /* WanagoBack New 3DS prototype. GPL-3.0-or-later; see PORT_README.md. */
 #include "wanagoback.h"
+#include "wgb_skin.h"
+#include <math.h>
+#include <ctype.h>
 #include "3ds.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -15,16 +18,16 @@
 #define CATALOG "https://raw.githubusercontent.com/WanagoBack/testing/main/library.json"
 #define MAX_VIDEOS 512
 #define JSON_LIMIT (1024*1024)
-typedef struct { char title[192], folder[80], source[1536], url[1536], file[32]; } Entry;
+typedef struct { char title[192], folder[80], source[1536], url[1536], file[32],description[384],category[40],meta[96]; } Entry;
 static Entry entries[MAX_VIDEOS], incoming[MAX_VIDEOS];
-static int count, incoming_count, selected, page;
+static int count, incoming_count, selected;
 static unsigned int ready, done, cancel_job, downloaded, pending_keys;
 static unsigned int pending_touch;
 static Thread worker;
 static int job, job_entry, result;
 static char status[180]="Bibliotheek laden...";
 static bool first=true;
-static Draw_image_data solid;
+
 static void cache_name(Entry* e) {
  uint64_t h=UINT64_C(14695981039346656037);
  const unsigned char* p=(const unsigned char*)(e->source[0]?e->source:e->title);
@@ -34,8 +37,10 @@ static void cache_name(Entry* e) {
 static bool field(Json_data* json,int i,const char* name,char* out,size_t capacity) {
  char key[80];Json_extracted_data value={0};
  snprintf(key,sizeof(key),"videos[%d].%s",i,name);
- if(Util_json_get_data(key,json,&value)||value.type!=JSON_TYPE_STRING||!value.value||value.size>=capacity)return false;
- memcpy(out,value.value,value.size);out[value.size]=0;return true;
+ if(Util_json_get_data(key,json,&value)||value.type!=JSON_TYPE_STRING||!value.value)return false;
+ size_t n=value.size<capacity?value.size:capacity-1;
+ if(n<value.size)while(n>0&&(((const unsigned char*)value.value)[n]&192)==128)n--;
+ memcpy(out,value.value,n);out[n]=0;return true;
 }
 static int parse_catalog(const char* text,Entry* out) {
  Json_data json={0};int n=0;
@@ -44,9 +49,16 @@ static int parse_catalog(const char* text,Entry* out) {
   Entry e={0};
   if(!field(&json,i,"title",e.title,sizeof(e.title))||!e.title[0])continue;
   field(&json,i,"folder",e.folder,sizeof(e.folder));
+  field(&json,i,"description",e.description,sizeof(e.description));
+  field(&json,i,"category",e.category,sizeof(e.category));
   field(&json,i,"url3ds",e.url,sizeof(e.url));
   if(!field(&json,i,"megaUrl",e.source,sizeof(e.source)))
    if(!field(&json,i,"videoUrl",e.source,sizeof(e.source)))snprintf(e.source,sizeof(e.source),"%s",e.url);
+  char path[80];Json_extracted_data season={0},episode={0};
+  snprintf(path,sizeof(path),"videos[%d].seasonNumber",i);Util_json_get_data(path,&json,&season);
+  snprintf(path,sizeof(path),"videos[%d].episode",i);Util_json_get_data(path,&json,&episode);
+  if(season.type==JSON_TYPE_NUMBER&&season.value&&episode.type==JSON_TYPE_NUMBER&&episode.value)
+   snprintf(e.meta,sizeof(e.meta),"Seizoen %.0f - Aflevering %.0f",*(double*)season.value,*(double*)episode.value);
   cache_name(&e);out[n++]=e;
  }
  Util_json_free(&json);return n;
@@ -114,7 +126,8 @@ static void start_job(int type){
 }
 void Wgb_init(void){
  mkdir("/3ds",0777);mkdir(ROOT,0777);mkdir(ROOT "videos",0777);
- solid=Draw_get_empty_image();
+ Wskin_init();
+ mkdir(ROOT "favorites",0777);mkdir(ROOT "playlist",0777);mkdir(ROOT "thumbs",0777);
  FILE* f=fopen(ROOT "library.json","rb");
  if(f){char* text=calloc(1,JSON_LIMIT+1);if(text){size_t n=fread(text,1,JSON_LIMIT,f);text[n]=0;int loaded=parse_catalog(text,entries);if(loaded>0)count=loaded;free(text);}fclose(f);}
  __atomic_store_n(&ready,1,__ATOMIC_RELEASE);
@@ -123,15 +136,21 @@ bool Wgb_ready(void){return __atomic_load_n(&ready,__ATOMIC_ACQUIRE)!=0;}
 void Wgb_exit(void){
  __atomic_store_n(&ready,0,__ATOMIC_RELEASE);__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);
  if(worker){threadJoin(worker,UINT64_MAX);threadFree(worker);worker=NULL;}
+ Wskin_exit();
 }
 void Wgb_hid(const Hid_info* key){
  unsigned int bits=0;
  if(DEF_HID_PHY_PR(key->a))bits|=1;if(DEF_HID_PHY_PR(key->b))bits|=2;
  if(DEF_HID_PHY_PR(key->d_up))bits|=4;if(DEF_HID_PHY_PR(key->d_down))bits|=8;
- if(DEF_HID_PHY_PR(key->x))bits|=16;if(DEF_HID_PHY_PR(key->y))bits|=32;
- if(DEF_HID_PHY_PR(key->start))bits|=64;
- if(DEF_HID_PHY_PR(key->touch)&&key->touch_y>=44&&key->touch_y<194)
-  __atomic_store_n(&pending_touch,(unsigned int)((key->touch_y-44)/30+1),__ATOMIC_RELEASE);
+ if(DEF_HID_PHY_PR(key->x))bits|=16;if(DEF_HID_PHY_PR(key->start))bits|=64;
+ if(DEF_HID_PHY_PR(key->d_left))bits|=128;if(DEF_HID_PHY_PR(key->d_right))bits|=256;
+ if(DEF_HID_PHY_RE(key->touch)){
+  int dx=key->touch_x_last-key->touch_x_initial,dy=key->touch_y_last-key->touch_y_initial;
+  unsigned int gesture=0;
+  if(abs(dx)>24||abs(dy)>24)gesture=abs(dx)>abs(dy)?(dx<0?1:2):(dy<0?3:4);
+  unsigned int packet=(unsigned int)key->touch_x_initial|((unsigned int)key->touch_y_initial<<9)|(1u<<18)|(gesture<<19);
+  __atomic_store_n(&pending_touch,packet,__ATOMIC_RELEASE);
+ }
  __atomic_fetch_or(&pending_keys,bits,__ATOMIC_RELEASE);
 }
 static void play_selected(void){
@@ -143,43 +162,204 @@ static void play_selected(void){
  }else if(e->url[0])start_job(2);
  else snprintf(status,sizeof(status),"Zet deze video op SD met prepare_sd.py.");
 }
-static void rect(float x,float y,float w,float h,uint32_t color){Draw_texture(&solid,color,x,y,w,h);}
+/* Windows layout: top navigation, character carousel, genre rows and yellow modal. */
+typedef struct {float x,y,w,h;int action,value;} Hit;
+static Hit hits[80];static int hit_count;
+static int screen=0,home_index=0,group_count=0,row_page=0;
+static char groups[64][80],filter[80];
+static int grouped[5][MAX_VIDEOS],group_sizes[5],offsets[5];
+static float visual_offsets[5];
+static uint64_t scene_time,loading_time;
+static bool modal=false;
+static int return_screen=1;
+static int pending_action=-1,pending_value;static uint64_t pressed_at;
+static const int category_icons[]={WGB_SERIES,WGB_FILM,WGB_KARAOKE,WGB_MUSIC,WGB_SERIES};
+static const uint32_t category_colors[]={0xff9b29c5,0xff0015d3,0xffede5dd,0xff00d797,0xff2ab043};
+static void hit(float x,float y,float w,float h,int action,int value){if(hit_count<80)hits[hit_count++]=(Hit){x,y,w,h,action,value};}
+static float elapsed(uint64_t start){return (float)(osGetTime()-start)/1000.0f;}
+static void change_screen(int next){screen=next;modal=false;row_page=0;scene_time=osGetTime();}
+static int category(const Entry* e){
+ if(strstr(e->category,"karaoke"))return 2;
+ if(strstr(e->category,"film"))return 1;
+ if(strstr(e->category,"clip")||strstr(e->category,"music"))return 3;
+ if(strstr(e->category,"special"))return 4;
+ return 0;
+}
+static bool marked(const Entry* e,const char* kind){char p[200];struct stat s;snprintf(p,sizeof(p),ROOT "%s/%s",kind,e->file);return !stat(p,&s);}
+static void toggle(const Entry* e,const char* kind){char p[200];snprintf(p,sizeof(p),ROOT "%s/%s",kind,e->file);if(marked(e,kind))remove(p);else{FILE* f=fopen(p,"wb");if(f)fclose(f);}}
+static bool matches(const char* title,const char* needle){
+ if(!*needle)return true;
+ for(;*title;title++){const unsigned char*a=(const unsigned char*)title,*b=(const unsigned char*)needle;
+  while(*a&&*b&&tolower(*a)==tolower(*b)){a++;b++;}if(!*b)return true;
+ }return false;
+}
+static void rebuild(void){
+ group_count=0;memset(group_sizes,0,sizeof(group_sizes));
+ for(int i=0;i<count;i++){
+  int g=0;for(;g<group_count;g++)if(!strcmp(groups[g],entries[i].folder))break;
+  if(g==group_count&&group_count<64)snprintf(groups[group_count++],80,"%s",entries[i].folder);
+ }
+ if(home_index>=group_count)home_index=0;
+ for(int i=0;i<count;i++){
+  bool use=screen==3?marked(&entries[i],"favorites"):screen==4?marked(&entries[i],"playlist"):
+    screen==6?matches(entries[i].title,filter):(group_count&&!strcmp(groups[home_index],entries[i].folder));
+  if(use){int c=category(&entries[i]);grouped[c][group_sizes[c]++]=i;}
+ }
+ for(int c=0;c<5;c++){int max=group_sizes[c]>2?group_sizes[c]-2:0;if(offsets[c]>max)offsets[c]=max;if(offsets[c]<0)offsets[c]=0;}
+}
+static int character_image(const char* folder){if(!strcmp(folder,"Plop"))return WGB_PLOP;if(!strcmp(folder,"SamsonGert"))return WGB_SAMSON;return WGB_FEATURED;}
+static const char* character_name(const char* folder){if(!strcmp(folder,"InDeKijker"))return "In de kijker";if(!strcmp(folder,"SamsonGert"))return "Samson en Gert";return folder;}
+static void icon(int image,float x,float y,float size,int action,int value){float inset=(pending_action==action&&pending_value==value)?size*.04f:0;Wskin_image(image,x+inset,y+inset,size-2*inset,size-2*inset);hit(x-2,y-2,size+4,size+4,action,value);}
+static void navbar(void){
+ Wskin_rect(0,0,320,30,0xcfffffff);
+ icon(WGB_BACK,3,3,24,1,0);icon(WGB_AVATAR,33,3,24,2,0);icon(WGB_HOME,63,3,24,2,0);
+ icon(WGB_FAVORITES,218,3,24,3,0);icon(WGB_SEARCH,251,3,24,4,0);icon(WGB_SETTINGS,284,3,24,5,0);
+}
+static void text_center(const char* s,float x,float y,float w,float size,uint32_t color){float tw=Wskin_width(s,size);Wskin_text(s,x+fmaxf(0,(w-tw)/2),y,size,color,w,1);}
+static float bounce(void){float t=fminf(1,elapsed(scene_time)/.42f);return t<.65f?(.9f+.125f*(t/.65f)):(1.025f-.025f*((t-.65f)/.35f));}
+static void draw_home(void){
+ text_center("KIES EEN PERSONAGE",30,50,260,14,0xff242424);
+ float scale=bounce();
+ for(int col=0;col<2;col++){
+  int i=home_index+col;if(i>=group_count)break;
+  float w=112*scale,h=112*scale,x=38+col*142+(112-w)/2,y=82+(112-h)/2;
+  Wskin_image(character_image(groups[i]),x,y,w,h);text_center(character_name(groups[i]),x,200,w,9,0xff242424);hit(x,y,w,h,6,i);
+ }
+ if(home_index>0)icon(WGB_LEFT,0,121,25,7,-1);
+ if(home_index+2<group_count)icon(WGB_RIGHT,295,121,25,7,1);
+ if(!group_count)text_center("Geen video's gevonden",30,115,260,10,0xff242424);
+}
+static void draw_browse(void){
+ int row=0,visible=0;
+ for(int c=0;c<5;c++)if(group_sizes[c]){
+  if(row++<row_page)continue;if(visible==2)break;
+  float y=36+visible*91;visible++;
+  Wskin_rect(0,y,25,87,category_colors[c]);Wskin_image(category_icons[c],3,y+56,19,19);
+  Wskin_image(WGB_LABEL_SERIES+c,8,y+7,8,43);
+  visual_offsets[c]+=(offsets[c]*109-visual_offsets[c])*.23f;
+
+  for(int j=0;j<group_sizes[c];j++){
+   float x=36+j*109-visual_offsets[c];if(x>320||x+97<26)continue;
+   int i=grouped[c][j];float rise=fmaxf(0,1-elapsed(scene_time)/.3f)*8;
+   Wskin_round(x,y+rise,97,79,4,0xffffffff);Wskin_thumb(entries[i].file,x,y+rise,97,53);
+   text_center(entries[i].title,x+4,y+56+rise,89,6.5f,0xff222222);
+   text_center("Tik hier!",x+4,y+69+rise,83,6,0xff222222);Wskin_image(category_icons[c],x+81,y+64+rise,13,13);
+   float hx=fmaxf(26,x);hit(hx,y,fminf(320,x+97)-hx,79,8,i);
+  }
+  Wskin_rect(0,y,25,87,category_colors[c]);Wskin_image(category_icons[c],3,y+56,19,19);
+  Wskin_image(WGB_LABEL_SERIES+c,8,y+7,8,43);
+ }
+ if(!visible)text_center("Hier staan nog geen video's",30,95,270,10,0xff242424);
+ icon(WGB_LEFT,111,217,20,9,-1);icon(WGB_RIGHT,190,217,20,9,1);
+ text_center(screen==3?"Favorieten":screen==4?"Mijn playlist":screen==6?"Zoeken":(group_count?character_name(groups[home_index]):"Video's"),8,221,96,7,0xff242424);
+}
+static void draw_modal(void){
+ Entry* e=&entries[selected];Wskin_rect(0,0,320,240,0x99000000);
+ float scale=bounce(),w=296*scale,h=142*scale,x=(320-w)/2,y=(240-h)/2;
+ Wskin_image(WGB_PANEL,x,y,w,h);
+ icon(WGB_CLOSE,x+w-20,y+3,19,10,0);
+ Wskin_thumb(e->file,x+16,y+21,99,61);
+ Wskin_text(e->title,x+124,y+21,9,0xff202020,w-141,2);
+ Wskin_text(e->description,x+124,y+48,7,0xff303030,w-141,3);
+ Wskin_text(e->meta,x+124,y+82,6,0xff726231,w-141,1);
+ icon(WGB_PLAY,99,166,29,11,0);
+ if(marked(e,"favorites"))Wskin_round(142,165,31,31,5,0x99ffffff);
+ icon(WGB_FAVORITES,143,166,29,12,0);icon(WGB_PLAYLIST,187,166,29,13,0);
+ if(strstr(status,"Zet ")||strstr(status,"Download"))Wskin_text(status,18,216,7,0xff202020,284,2);
+}
+static void settings(void){
+ Wskin_image(WGB_PANEL,15,55,290,151);text_center("INSTELLINGEN",35,69,250,13,0xff222222);
+ icon(WGB_REFRESH,46,108,40,14,0);Wskin_text("Verversen",37,152,8,0xff222222,70,1);
+ icon(WGB_PLAYLIST,140,108,40,15,0);Wskin_text("Mijn playlist",131,152,8,0xff222222,80,1);
+ icon(WGB_CLOSE,233,108,40,16,0);Wskin_text("Afsluiten",227,152,8,0xff222222,70,1);
+}
+static void dispatch(int action,int value){
+ switch(action){
+ case 1:if(modal)modal=false;else change_screen(0);break;
+ case 2:change_screen(0);break;
+ case 3:change_screen(3);rebuild();break;
+ case 4:{SwkbdState keyboard;swkbdInit(&keyboard,SWKBD_TYPE_NORMAL,2,79);swkbdSetHintText(&keyboard,"Zoek een video");if(swkbdInputText(&keyboard,filter,sizeof(filter))==SWKBD_BUTTON_CONFIRM){change_screen(6);rebuild();}break;}
+ case 5:change_screen(5);break;
+ case 6:home_index=value;change_screen(1);memset(offsets,0,sizeof(offsets));memset(visual_offsets,0,sizeof(visual_offsets));rebuild();break;
+ case 7:if(!group_count)break;home_index+=value;if(home_index<0)home_index=0;if(home_index>=group_count)home_index=group_count-1;scene_time=osGetTime();break;
+ case 8:selected=value;return_screen=screen;modal=true;scene_time=osGetTime();break;
+ case 9:if(value<0){if(row_page>0)row_page--;}else{int n=0;for(int i=0;i<5;i++)if(group_sizes[i])n++;if(row_page+2<n)row_page++;}break;
+ case 10:modal=false;screen=return_screen;rebuild();break;
+ case 11:loading_time=osGetTime();play_selected();break;
+ case 12:toggle(&entries[selected],"favorites");break;
+ case 13:toggle(&entries[selected],"playlist");break;
+ case 14:start_job(1);break;
+ case 15:change_screen(4);rebuild();break;
+ case 16:Menu_set_must_exit_flag(true);break;
+ }
+}
+static void handle_touch(unsigned int packet){
+ if(!(packet&(1u<<18)))return;int x=(int)(packet&511),y=(int)((packet>>9)&255);int gesture=(int)(packet>>19);
+ if(gesture&& !modal &&screen!=0&&screen!=5){
+  if(gesture==3||gesture==4){dispatch(9,gesture==3?1:-1);return;}
+  int row=0,target=(y-36)/91+row_page;
+  for(int c=0;c<5;c++)if(group_sizes[c]){if(row++==target){offsets[c]+=(gesture==1?1:-1);rebuild();break;}}return;
+ }
+ if(gesture&&screen==0){dispatch(7,gesture==1?1:-1);return;}
+ if(gesture)return;
+ for(int i=hit_count-1;i>=0;i--){Hit* h=&hits[i];if(x>=h->x&&x<h->x+h->w&&y>=h->y&&y<h->y+h->h){pending_action=h->action;pending_value=h->value;pressed_at=osGetTime();break;}}
+}
 void Wgb_main(void){
- if(first){first=false;start_job(1);}
+ if(first){first=false;loading_time=scene_time=osGetTime();rebuild();start_job(1);}
  if(worker&&__atomic_load_n(&done,__ATOMIC_ACQUIRE)){
   threadJoin(worker,UINT64_MAX);threadFree(worker);worker=NULL;
-  if(!result){
-   if(job==1){count=incoming_count;memcpy(entries,incoming,sizeof(Entry)*(size_t)count);selected=0;snprintf(status,sizeof(status),"%d video's. Kies een titel.",count);}
-   else{snprintf(status,sizeof(status),"Download klaar. A = afspelen.");}
-  }else snprintf(status,sizeof(status),"%s",job==1?"Ophalen mislukt. SD-bibliotheek blijft beschikbaar.":"Download mislukt of geannuleerd. Probeer opnieuw.");
+  if(!result){if(job==1){count=incoming_count;memcpy(entries,incoming,sizeof(Entry)*(size_t)count);selected=0;rebuild();scene_time=osGetTime();snprintf(status,sizeof(status),"%d video's geladen",count);}else snprintf(status,sizeof(status),"Download klaar. Tik op afspelen.");}
+  else snprintf(status,sizeof(status),"%s",job==1?"Geen verbinding. De SD-bibliotheek blijft beschikbaar.":"Download mislukt of geannuleerd.");
  }
- unsigned int keys=__atomic_exchange_n(&pending_keys,0,__ATOMIC_ACQUIRE);
- unsigned int touch=__atomic_exchange_n(&pending_touch,0,__ATOMIC_ACQUIRE);
+ unsigned int keys=__atomic_exchange_n(&pending_keys,0,__ATOMIC_ACQUIRE),touch=__atomic_exchange_n(&pending_touch,0,__ATOMIC_ACQUIRE);
  if(worker){if(keys&2)__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);}
  else{
-  if((keys&4)&&selected>0)selected--;if((keys&8)&&selected+1<count)selected++;
-  if(touch&&page*5+(int)touch-1<count){selected=page*5+(int)touch-1;keys|=1;}
-  if(keys&16)start_job(1);
-  if(keys&64){Menu_set_must_exit_flag(true);return;}
-  if(keys&32){if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();return;}
-  if(keys&1){play_selected();if(Vid_query_running_flag())return;}
+  if(pending_action>=0&&osGetTime()-pressed_at>=250){int a=pending_action,v=pending_value;pending_action=-1;dispatch(a,v);}
+  if(pending_action<0)handle_touch(touch);
+  if(keys&2)dispatch(1,0);if(keys&16)dispatch(14,0);if(keys&64)dispatch(16,0);
+  if(keys&128){if(screen==0)dispatch(7,-1);else dispatch(9,-1);}
+  if(keys&256){if(screen==0)dispatch(7,1);else dispatch(9,1);}
+  if(keys&4)dispatch(9,-1);if(keys&8)dispatch(9,1);
+  if(keys&1){if(modal)dispatch(11,0);else if(screen==0&&group_count)dispatch(6,home_index);}
+  if(Vid_query_running_flag())return;
  }
- page=selected/5;
- Draw_frame_ready();Draw_screen_ready(DRAW_SCREEN_TOP_LEFT,0xffe8ba68);
- rect(0,0,400,53,0xff0eb8ff);Draw_c("WanagoBack",24,13,1.1f,0xff242424);
- rect(18,71,364,107,0xfff6f6f6);
- Draw_c(count?entries[selected].folder:"Welkom op New 3DS",29,82,.55f,0xff8c5923);
- char title[64];snprintf(title,sizeof(title),"%.52s",count?entries[selected].title:"Je bibliotheek verschijnt hier");
- Draw_c(title,29,111,.55f,0xff222222);
- Draw_c(worker?"Even geduld...":"A / tik: kies video",29,147,.5f,0xff222222);
- Draw_c(status,12,191,.38f,0xff222222);
- if(worker){char p[64];snprintf(p,sizeof(p),"Ontvangen: %u KiB",__atomic_load_n(&downloaded,__ATOMIC_RELAXED));Draw_c(p,12,216,.4f,0xff222222);}
- Draw_screen_ready(DRAW_SCREEN_BOTTOM,0xffeee1bf);rect(0,0,320,36,0xff0eb8ff);Draw_c("Jouw video's",12,7,.65f,0xff222222);
- for(int row=0;row<5;row++){
-  int i=page*5+row;if(i>=count)break;
-  rect(8,44+row*30,304,27,i==selected?0xff0eb8ff:0xffffffff);
-  char line[64];snprintf(line,sizeof(line),"%.43s",entries[i].title);Draw_c(line,15,49+row*30,.45f,0xff222222);
+ hit_count=0;
+ Draw_frame_ready();Draw_screen_ready(DRAW_SCREEN_TOP_LEFT,0xff000000);
+ if(worker&&job==2)Wskin_loading(elapsed(loading_time),"Even geduld...",400,240);
+ else{Wskin_image(WGB_BACKGROUND,0,-30,400,300);text_center("WANAGOBACK",0,93,400,24,0xffffffff);text_center("Kies je video op het touchscreen",0,137,400,11,0xff303030);}
+ Draw_screen_ready(DRAW_SCREEN_BOTTOM,0xffe8bc31);Wskin_image(WGB_BACKGROUND,0,0,320,240);
+ if((worker&&!count)||(worker&&job==2)){
+  Wskin_loading(elapsed(loading_time),"Even geduld...",320,240);
+  if(job==2){char bytes[70];snprintf(bytes,sizeof(bytes),"%u KiB ontvangen - B: annuleren",__atomic_load_n(&downloaded,__ATOMIC_RELAXED));text_center(bytes,0,216,320,7,0xff222222);}
+ }else{
+  navbar();if(screen==0)draw_home();else if(screen==5)settings();else draw_browse();
+  if(modal){hit_count=0;draw_modal();}
+  if(!count)Wskin_text(status,15,219,7,0xff222222,290,2);
  }
- Draw_c("X: verversen   Y: SD-player   START: sluiten",8,211,.37f,0xff222222);
  Draw_apply_draw();
+}
+void Wgb_video_draw(double position,double duration,bool paused,bool loading){
+ Draw_screen_ready(DRAW_SCREEN_BOTTOM,0xff000000);
+ Wskin_image(WGB_BACKGROUND,0,0,320,240);Wskin_rect(0,0,320,30,0xcfffffff);
+ Wskin_image(WGB_BACK,3,3,24,24);text_center("WANAGOBACK",40,8,240,12,0xff222222);
+ Wskin_image(WGB_PANEL,12,52,296,139);
+ Wskin_text(count?entries[selected].title:"Video",32,69,13,0xff202020,255,2);
+ Wskin_image(WGB_PLAY,139,116,42,42);
+ if(!paused){Wskin_rect(151,126,5,23,0xfff8f8f8);Wskin_rect(164,126,5,23,0xfff8f8f8);}
+ Wskin_image(WGB_LEFT,87,125,23,23);Wskin_image(WGB_RIGHT,211,125,23,23);
+ char t[64];unsigned int p=(unsigned int)fmax(0,position/1000),d=(unsigned int)fmax(0,duration/1000);
+ snprintf(t,sizeof(t),"%u:%02u / %u:%02u",p/60,p%60,d/60,d%60);text_center(t,25,170,270,9,0xff303030);
+ Wskin_round(15,209,290,8,4,0xffa39074);float fraction=duration>0?(float)fmin(1,position/duration):0;
+ if(fraction>0)Wskin_round(15,209,fmaxf(8,290*fraction),8,4,0xff00cdff);
+ text_center(loading?"Even geduld...":"A: pauze   B: terug   tik op de balk om te spoelen",0,228,320,6.5f,0xff242424);
+}
+int Wgb_video_input(const Hid_info* key,double* value){
+ if(DEF_HID_PHY_PR(key->b))return 2;if(DEF_HID_PHY_PR(key->a))return 1;
+ if(DEF_HID_PHY_PR(key->d_left)){*value=-10000;return 3;}if(DEF_HID_PHY_PR(key->d_right)){*value=10000;return 3;}
+ if(DEF_HID_PHY_RE(key->touch)){
+  int x=key->touch_x_last,y=key->touch_y_last;
+  if(y<34&&x<34)return 2;
+  if(y>=112&&y<=163){if(x>=132&&x<=190)return 1;if(x>=72&&x<=123){*value=-10000;return 3;}if(x>=199&&x<=246){*value=10000;return 3;}}
+  if(y>=196&&y<=224){*value=fmin(1,fmax(0,(x-15)/290.0));return 4;}
+ }return 0;
 }
