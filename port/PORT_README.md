@@ -1,4 +1,4 @@
-# WanagoBack voor New Nintendo 3DS — prototype 0.3
+# WanagoBack voor New Nintendo 3DS — prototype 0.4
 
 De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal verpakt met de oorspronkelijke Windows-textures. Dit is een prototype: installatie, audio, video en touchscreen zijn nog niet op een echte console getest.
 
@@ -14,6 +14,18 @@ De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal v
 - Speelt voorbereide SD-video's met de decoder van Video player for 3DS. Hardwaredecodering staat upstream standaard aan op New-modellen.
 - Optioneel `url3ds`: een directe HTTPS-link naar een geschikte MP4. Die wordt eerst volledig naar SD gedownload. Daarna druk je A om te kijken. B annuleert een download. Er is nog geen gedeeltelijke downloadhervatting of directe streaming.
 - Afzonderlijke app-ID 0xEC610. Dit is een gekozen homebrew-ID, geen officieel gereserveerde registratie. De upstream zelf-updater staat uit.
+
+## Herstel in 0.4
+
+De catalogueparser is vervangen: de eerdere JSON-padzoeker leverde bij de huidige catalogus nul resultaten. De nieuwe parser is met alle 21 huidige posities getest. De actuele catalogus zit ook in ROMFS; de app probeert daarna de online versie en bewaart een SD-cache. Bij netwerkfalen blijft de bestaande lijst zichtbaar. In Instellingen staat de netwerkstatus.
+
+SD-paden gebruiken expliciet `sdmc:/`. Opslaan werkt ook wanneer de SD-driver geen bestaand bestand met `rename` kan vervangen: het oude bestand wordt als `.bak` bewaard, met herstel bij een mislukte vervanging. Profielen kunnen uit die reservekopie herstellen. Deze fout is getest met een gesimuleerde SD-driver die overschrijven weigert.
+
+Menumuziek ondersteunt `3ds/WanagoBack/music/menu.wav` (PCM 16-bit, mono/stereo, 8–48 kHz). De muziek loopt in menu's, stopt vóór een video en hervat bij terugkeer. Er is een aan/uit-knop in Instellingen. Het exacte YouTube-lied is NIET inbegrepen: de link kon worden geïdentificeerd maar de audio was niet beschikbaar. Gebruik `prepare_sd.py --music lied.mp3 ...` met je eigen aangeleverde audiobestand.
+
+De compacte videopreset gebruikt H.264 baseline, maximaal 400×240, 25 fps, CRF 28, maximaal 500 kbit/s video en 64 kbit/s AAC. `prepare_sd.py` converteert bestanden voor de SD-kaart. Een vooraf gemaakte lichtere MEGA-upload kan als `megaUrl3ds` naast `megaUrl` in library.json worden gezet; de 3DS kiest die versie. De app maakt een zware stream niet onderweg kleiner. Bestaande `megaUrl` blijft de Windows-bron en de identificatie voor de SD-cache.
+
+Dit is nog geen volledige Windows-port: pc-games, boeken, alle animaties en automatische MEGA-thumbnails ontbreken nog. Deze release herstelt profielen en catalogus en voegt de muziekvoorziening en de lichte-video-route toe. Hardwarevalidatie blijft nodig.
 
 ## Nieuw in 0.3
 
@@ -35,7 +47,7 @@ Thumbnails rechtstreeks uit MEGA, pc-games en boeken zijn nog niet geport. Besta
 
 ## Installeren en bouwen
 
-Installeer WanagoBack_New3DS_0.3.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
+Installeer WanagoBack_New3DS_0.4.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
 
 De code staat op de branch `codex/wanagoback-3ds` van `WanagoBack/testing`. De workflow daar compileert alleen code. De originele textures staan uitsluitend in dit bronpakket en het lokaal verpakte CIA-bestand; het 3DSX-bestand uit die workflow bevat deze textures niet.
 

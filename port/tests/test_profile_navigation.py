@@ -18,6 +18,10 @@ with tempfile.TemporaryDirectory() as d:
 #include <stdlib.h>
 #include <sys/stat.h>
 #include <assert.h>
+#include <errno.h>
+#include "wgb_storage.h"
+static int storage_errno;
+int sd_rename(const char*a,const char*b){struct stat st;if(stat(b,&st)==0){errno=EEXIST;return -1;}return rename(a,b);}
 #define ROOT "'''+d+'''/"
 typedef struct {char name[49];uint32_t id;uint8_t avatar;} WgbProfile;
 static WgbProfile profiles[4],editing;
@@ -45,5 +49,6 @@ int main(void){
 }
 '''
  path=pathlib.Path(d)/'test.c';path.write_text(code)
- subprocess.run(['gcc','-std=c99',str(path),'-o',d+'/test'],check=True)
+ subprocess.run(['gcc','-std=c99','-I'+str(root/'include'),'-Drename=sd_rename','-c',str(root/'source/wgb_storage.c'),'-o',d+'/storage.o'],check=True)
+ subprocess.run(['gcc','-std=c99','-I'+str(root/'include'),str(path),d+'/storage.o','-o',d+'/test'],check=True)
  subprocess.run([d+'/test'],check=True)

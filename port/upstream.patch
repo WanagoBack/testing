@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index d3c66bc..3f87c90 100644
+index d3c66bc..a6717c8 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -31,7 +31,7 @@ include $(DEVKITARM)/3ds_rules
@@ -21,9 +21,9 @@ index d3c66bc..3f87c90 100644
 -APP_AUTHOR			:= Core_2_Extreme
 -PRODUCT_CODE		:= CTR-Vid
 -UNIQUE_ID			:= 0xEC600
-+APP_VER				:= 1154
++APP_VER				:= 1155
 +APP_TITLE			:= WanagoBack
-+APP_DESCRIPTION		:= WanagoBack New 3DS prototype 0.3
++APP_DESCRIPTION		:= WanagoBack New 3DS prototype 0.4
 +APP_AUTHOR			:= WanagoBack / Core_2_Extreme
 +PRODUCT_CODE		:= CTR-WGB
 +UNIQUE_ID			:= 0xEC610
@@ -112,7 +112,7 @@ index e0ffce5..913a655 100644
  	{
  		if(!aptShouldJumpToHome())
 diff --git a/source/system/util/decoder.c b/source/system/util/decoder.c
-index a64ddac..81b6b57 100644
+index a64ddac..5a8a00b 100644
 --- a/source/system/util/decoder.c
 +++ b/source/system/util/decoder.c
 @@ -1,5 +1,6 @@
@@ -140,7 +140,7 @@ index a64ddac..81b6b57 100644
  //Variables.
  #if DEF_DECODER_VIDEO_AUDIO_API_ENABLE
  static bool util_audio_decoder_init[DEF_DECODER_MAX_SESSIONS][DEF_DECODER_MAX_AUDIO_TRACKS] = { 0, };
-@@ -495,7 +507,19 @@ uint32_t Util_decoder_open_file(const char* path, uint8_t* num_of_audio_tracks,
+@@ -495,7 +507,21 @@ uint32_t Util_decoder_open_file(const char* path, uint8_t* num_of_audio_tracks,
  		goto ffmpeg_api_failed;
  	}
  
@@ -157,11 +157,13 @@ index a64ddac..81b6b57 100644
 +  util_decoder_format_context[session]->pb=wgb_io[session];
 +  util_decoder_format_context[session]->flags|=AVFMT_FLAG_CUSTOM_IO;
 + }
-+ ffmpeg_result = avformat_open_input(&util_decoder_format_context[session], mega?NULL:path, NULL, NULL);
++ char local_path[2048];const char* input_path=path;
++ if(!strncmp(path,"sdmc:/",6)){snprintf(local_path,sizeof(local_path),"file:%s",path);input_path=local_path;}
++ ffmpeg_result = avformat_open_input(&util_decoder_format_context[session], mega?NULL:input_path, NULL, NULL);
  	if(ffmpeg_result != 0)
  	{
  		DEF_LOG_RESULT(avformat_open_input, false, ffmpeg_result);
-@@ -550,11 +574,13 @@ uint32_t Util_decoder_open_file(const char* path, uint8_t* num_of_audio_tracks,
+@@ -550,11 +576,13 @@ uint32_t Util_decoder_open_file(const char* path, uint8_t* num_of_audio_tracks,
  	return DEF_ERR_ALREADY_INITIALIZED;
  
  	ffmpeg_api_failed:
@@ -177,7 +179,7 @@ index a64ddac..81b6b57 100644
  	return DEF_ERR_OTHER;
  }
  
-@@ -2811,6 +2837,7 @@ void Util_decoder_close_file(uint8_t session)
+@@ -2811,6 +2839,7 @@ void Util_decoder_close_file(uint8_t session)
  	util_decoder_cache_packet_current_index[session] = 0;
  	util_decoder_cache_packet_ready_index[session] = 0;
  	avformat_close_input(&util_decoder_format_context[session]);

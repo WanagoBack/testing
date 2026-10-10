@@ -14,6 +14,7 @@ def main():
  p.add_argument('--sd',type=pathlib.Path,required=True,help='SD card root or a staging folder to copy to the SD card')
  p.add_argument('--library',type=pathlib.Path,help='Optional local library.json, otherwise fetch the configured GitHub catalog')
  p.add_argument('--overwrite',action='store_true')
+ p.add_argument('--music',type=pathlib.Path,help='MP3/WAV to loop in menus; converted to menu.wav')
  a=p.parse_args()
  ffmpeg=shutil.which('ffmpeg')
  if not ffmpeg:p.error('FFmpeg is required and must be available in PATH.')
@@ -26,6 +27,9 @@ def main():
  root=a.sd/'3ds'/'WanagoBack';dest=root/'videos';dest.mkdir(parents=True,exist_ok=True)
  # Keep metadata exactly the same so native and preparation cache names match.
  (root/'library.json').write_text(json.dumps(catalog,ensure_ascii=False),encoding='utf-8')
+ if a.music:
+  music=root/'music';music.mkdir(exist_ok=True)
+  subprocess.run([ffmpeg,'-nostdin','-y','-i',str(a.music),'-vn','-c:a','pcm_s16le','-ac','2','-ar','32000',str(music/'menu.wav')],check=True)
  files={}
  for f in a.videos.iterdir():
   if f.is_file() and f.suffix.lower() in {'.mp4','.mkv','.mov','.avi','.webm','.m4v'}:files.setdefault(normalized(f.stem),[]).append(f)
@@ -46,8 +50,8 @@ def main():
   temp=out.with_suffix('.partial.mp4')
   command=[ffmpeg,'-nostdin','-y','-i',str(matches[0]),'-map','0:v:0','-map','0:a:0?',
     '-vf','scale=400:240:force_original_aspect_ratio=decrease:force_divisible_by=2,pad=400:240:(ow-iw)/2:(oh-ih)/2,setsar=1',
-    '-r','30','-c:v','libx264','-profile:v','baseline','-level:v','3.0','-pix_fmt','yuv420p',
-    '-crf','24','-maxrate','1200k','-bufsize','2400k','-c:a','aac','-ac','2','-ar','32000','-b:a','96k','-movflags','+faststart',str(temp)]
+    '-r','25','-c:v','libx264','-profile:v','baseline','-level:v','3.0','-pix_fmt','yuv420p',
+    '-crf','28','-maxrate','500k','-bufsize','1000k','-c:a','aac','-ac','2','-ar','32000','-b:a','64k','-movflags','+faststart',str(temp)]
   try:
    subprocess.run(command,check=True);temp.replace(out);converted+=1
    subprocess.run([ffmpeg,'-nostdin','-y','-ss','0.1','-i',str(out),'-frames:v','1','-vf','scale=160:96',str(thumbs/(out.name+'.png'))],check=True)

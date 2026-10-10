@@ -2,6 +2,10 @@
 #include "wanagoback.h"
 #include "wgb_skin.h"
 #include "wgb_mega.h"
+#include "wgb_storage.h"
+#include "wgb_catalog.h"
+#include "wgb_music.h"
+#include <errno.h>
 #include <math.h>
 #include <ctype.h>
 #include "3ds.h"
@@ -15,11 +19,11 @@
 #include "system/draw/draw.h"
 #include "system/util/json.h"
 #include "video_player.h"
-#define ROOT "/3ds/WanagoBack/"
+#define ROOT "sdmc:/3ds/WanagoBack/"
 #define CATALOG "https://raw.githubusercontent.com/WanagoBack/testing/main/library.json"
 #define MAX_VIDEOS 512
 #define JSON_LIMIT (1024*1024)
-typedef struct { char title[192], folder[80], source[1536], url[1536], file[32],description[384],category[40],meta[96]; } Entry;
+
 static Entry entries[MAX_VIDEOS], incoming[MAX_VIDEOS];
 static int count, incoming_count, selected;
 static unsigned int ready, done, cancel_job, downloaded, pending_keys;
@@ -27,6 +31,8 @@ static unsigned int pending_touch;
 static Thread worker;
 static int job, job_entry, result;
 static char status[180]="Bibliotheek laden...";
+static char catalog_status[140]="Ingebouwde videolijst";
+static int storage_errno;
 static bool first=true;
 typedef struct {char name[49];uint32_t id;uint8_t avatar;} WgbProfile;
 static WgbProfile profiles[4],editing;
@@ -34,16 +40,19 @@ static int profile_count,active_profile,edit_index=-1;
 static uint32_t next_profile_id=2;
 static const int avatar_images[]={WGB_AV_100,WGB_AV_101,WGB_AV_201,WGB_AV_300,WGB_AV_301,WGB_AV_401,WGB_AV_501,WGB_AV_600,WGB_AV_601,WGB_AV_800,WGB_AV_801,WGB_AV_0000};
 static bool save_profiles(void){
- FILE* f=fopen(ROOT "profiles.dat.part","wb");if(!f)return false;
+ FILE* f=fopen(ROOT "profiles.dat.part","wb");if(!f){storage_errno=errno;return false;}
  uint32_t h[4]={0x57475033,(uint32_t)profile_count,(uint32_t)active_profile,next_profile_id};
  bool ok=fwrite(h,sizeof(h),1,f)==1&&fwrite(profiles,sizeof(profiles),1,f)==1;
- if(fclose(f))ok=false;if(ok)ok=rename(ROOT "profiles.dat.part",ROOT "profiles.dat")==0;return ok;
+ if(fclose(f))ok=false;if(ok)ok=Wstore_replace(ROOT "profiles.dat.part",ROOT "profiles.dat");storage_errno=ok?0:errno;return ok;
 }
 static void load_profiles(void){
- uint32_t h[4]={0};FILE* f=fopen(ROOT "profiles.dat","rb");bool ok=false;
- if(f){ok=fread(h,sizeof(h),1,f)==1&&fread(profiles,sizeof(profiles),1,f)==1;fclose(f);}
- ok=ok&&h[0]==0x57475033&&h[1]>0&&h[1]<=4&&h[2]<h[1]&&h[3]>1;
- if(ok)for(unsigned i=0;i<h[1];i++){if(!memchr(profiles[i].name,0,49)||!profiles[i].name[0]||profiles[i].avatar>=12||!profiles[i].id||profiles[i].id>=h[3])ok=false;}
+ uint32_t h[4]={0};bool ok=false;const char* files[]={ROOT "profiles.dat",ROOT "profiles.dat.bak"};
+ for(int j=0;j<2&&!ok;j++){
+  FILE* f=fopen(files[j],"rb");if(!f)continue;
+  ok=fread(h,sizeof(h),1,f)==1&&fread(profiles,sizeof(profiles),1,f)==1;fclose(f);
+  ok=ok&&h[0]==0x57475033&&h[1]>0&&h[1]<=4&&h[2]<h[1]&&h[3]>1;
+  if(ok)for(unsigned i=0;i<h[1];i++)if(!memchr(profiles[i].name,0,49)||!profiles[i].name[0]||profiles[i].avatar>=12||!profiles[i].id||profiles[i].id>=h[3])ok=false;
+ }
  if(ok){profile_count=(int)h[1];active_profile=(int)h[2];next_profile_id=h[3];}
  else{memset(profiles,0,sizeof(profiles));strcpy(profiles[0].name,"Samson");profiles[0].avatar=8;profiles[0].id=1;profile_count=1;active_profile=0;save_profiles();}
 }
@@ -60,35 +69,7 @@ static void cache_name(Entry* e) {
  for(;*p;p++){h^=*p;h*=UINT64_C(1099511628211);}
  snprintf(e->file,sizeof(e->file),"%016llx.mp4",(unsigned long long)h);
 }
-static bool field(Json_data* json,int i,const char* name,char* out,size_t capacity) {
- char key[80];Json_extracted_data value={0};
- snprintf(key,sizeof(key),"videos[%d].%s",i,name);
- if(Util_json_get_data(key,json,&value)||value.type!=JSON_TYPE_STRING||!value.value)return false;
- size_t n=value.size<capacity?value.size:capacity-1;
- if(n<value.size)while(n>0&&(((const unsigned char*)value.value)[n]&192)==128)n--;
- memcpy(out,value.value,n);out[n]=0;return true;
-}
-static int parse_catalog(const char* text,Entry* out) {
- Json_data json={0};int n=0;
- if(Util_json_parse(text,&json))return -1;
- for(int i=0;i<MAX_VIDEOS;i++){
-  Entry e={0};
-  if(!field(&json,i,"title",e.title,sizeof(e.title))||!e.title[0])continue;
-  field(&json,i,"folder",e.folder,sizeof(e.folder));
-  field(&json,i,"description",e.description,sizeof(e.description));
-  field(&json,i,"category",e.category,sizeof(e.category));
-  field(&json,i,"url3ds",e.url,sizeof(e.url));
-  if(!field(&json,i,"megaUrl",e.source,sizeof(e.source)))
-   if(!field(&json,i,"videoUrl",e.source,sizeof(e.source)))snprintf(e.source,sizeof(e.source),"%s",e.url);
-  char path[80];Json_extracted_data season={0},episode={0};
-  snprintf(path,sizeof(path),"videos[%d].seasonNumber",i);Util_json_get_data(path,&json,&season);
-  snprintf(path,sizeof(path),"videos[%d].episode",i);Util_json_get_data(path,&json,&episode);
-  if(season.type==JSON_TYPE_NUMBER&&season.value&&episode.type==JSON_TYPE_NUMBER&&episode.value)
-   snprintf(e.meta,sizeof(e.meta),"Seizoen %.0f - Aflevering %.0f",*(double*)season.value,*(double*)episode.value);
-  cache_name(&e);out[n++]=e;
- }
- Util_json_free(&json);return n;
-}
+static int parse_catalog(const char* text,Entry* out){int n=Wcatalog_parse(text,out,MAX_VIDEOS);for(int i=0;i<n;i++)cache_name(&out[i]);return n;}
 typedef struct { char* data;size_t used; } Memory;
 static size_t memory_write(char* data,size_t size,size_t nmemb,void* userdata){
  Memory* m=userdata;size_t bytes=size*nmemb;
@@ -103,7 +84,7 @@ static int progress(void* p,curl_off_t total,curl_off_t current,curl_off_t up_to
 static CURL* connection(const char* url){
  if(strncmp(url,"https://",8))return NULL;
  CURL* c=curl_easy_init();if(!c)return NULL;
- curl_easy_setopt(c,CURLOPT_URL,url);
+ curl_easy_setopt(c,CURLOPT_URL,url);curl_easy_setopt(c,CURLOPT_HTTP_VERSION,CURL_HTTP_VERSION_1_1);
  curl_easy_setopt(c,CURLOPT_CAINFO,"romfs:/gfx/cert/cacert.pem");
  curl_easy_setopt(c,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(c,CURLOPT_SSL_VERIFYHOST,2L);
  curl_easy_setopt(c,CURLOPT_PROTOCOLS_STR,"https");curl_easy_setopt(c,CURLOPT_REDIR_PROTOCOLS_STR,"https");
@@ -121,9 +102,12 @@ static void download_worker(void* arg){
   Memory m={calloc(1,JSON_LIMIT+1),0};CURL* c=connection(CATALOG);
   if(m.data&&c){
    curl_easy_setopt(c,CURLOPT_TIMEOUT,60L);curl_easy_setopt(c,CURLOPT_WRITEFUNCTION,memory_write);curl_easy_setopt(c,CURLOPT_WRITEDATA,&m);
-   if(curl_easy_perform(c)==CURLE_OK&&(incoming_count=parse_catalog(m.data,incoming))>0){
+   CURLcode rc=curl_easy_perform(c);long http=0;curl_easy_getinfo(c,CURLINFO_RESPONSE_CODE,&http);
+   snprintf(catalog_status,sizeof(catalog_status),"Offline lijst: netwerk %d / HTTP %ld",(int)rc,http);
+   if(rc==CURLE_OK&&(incoming_count=parse_catalog(m.data,incoming))>0){
+    snprintf(catalog_status,sizeof(catalog_status),"Online bibliotheek: %d video's",incoming_count);
     FILE* f=fopen(ROOT "library.json.part","wb");
-    if(f){bool ok=fwrite(m.data,1,m.used,f)==m.used;if(fclose(f))ok=false;if(ok)rename(ROOT "library.json.part",ROOT "library.json");}
+    if(f){bool ok=fwrite(m.data,1,m.used,f)==m.used;if(fclose(f))ok=false;if(ok)Wstore_replace(ROOT "library.json.part",ROOT "library.json");}
     result=0;
    }
   }
@@ -137,7 +121,7 @@ static void download_worker(void* arg){
    CURLcode rc=curl_easy_perform(c);bool ok=!ferror(f);if(fclose(f))ok=false;f=NULL;
    if(rc==CURLE_OK&&ok){
     struct stat info;
-    if(!stat(temp,&info)&&info.st_size>0&&rename(temp,final)==0)result=0;
+    if(!stat(temp,&info)&&info.st_size>0&&Wstore_replace(temp,final))result=0;
    }
   }
   if(f)fclose(f);if(c)curl_easy_cleanup(c);if(result)remove(temp);
@@ -151,11 +135,15 @@ static void start_job(int type){
  snprintf(status,sizeof(status),"%s",worker?(type==1?"Bibliotheek ophalen...":"Video naar SD downloaden... B = annuleren"):"Kon achtergrondtaak niet starten.");
 }
 void Wgb_init(void){
- mkdir("/3ds",0777);mkdir(ROOT,0777);mkdir(ROOT "videos",0777);
+ struct stat sd; if(stat("sdmc:/",&sd)!=0)archiveMountSdmc();
+ mkdir("sdmc:/3ds",0777);mkdir(ROOT,0777);mkdir(ROOT "videos",0777);
+ curl_global_init(CURL_GLOBAL_DEFAULT);
  Wskin_init();load_profiles();
- mkdir(ROOT "favorites",0777);mkdir(ROOT "playlist",0777);mkdir(ROOT "thumbs",0777);
- FILE* f=fopen(ROOT "library.json","rb");
- if(f){char* text=calloc(1,JSON_LIMIT+1);if(text){size_t n=fread(text,1,JSON_LIMIT,f);text[n]=0;int loaded=parse_catalog(text,entries);if(loaded>0)count=loaded;free(text);}fclose(f);}
+ mkdir(ROOT "music",0777);mkdir(ROOT "favorites",0777);mkdir(ROOT "playlist",0777);mkdir(ROOT "thumbs",0777);
+ const char* sources[]={ROOT "library.json",ROOT "library.json.bak","romfs:/wgb/library.json"};
+ for(int i=0;i<3&&!count;i++){FILE* f=fopen(sources[i],"rb");
+  if(f){char* text=calloc(1,JSON_LIMIT+1);if(text){size_t n=fread(text,1,JSON_LIMIT,f);text[n]=0;int loaded=parse_catalog(text,entries);if(loaded>0)count=loaded;free(text);}fclose(f);}
+ }
  __atomic_store_n(&ready,1,__ATOMIC_RELEASE);
 }
 bool Wgb_ready(void){return __atomic_load_n(&ready,__ATOMIC_ACQUIRE)!=0;}
@@ -163,7 +151,7 @@ void Wgb_exit(void){
  Wmega_cancel();
  __atomic_store_n(&ready,0,__ATOMIC_RELEASE);__atomic_store_n(&cancel_job,1,__ATOMIC_RELAXED);
  if(worker){threadJoin(worker,UINT64_MAX);threadFree(worker);worker=NULL;}
- Wskin_exit();
+ Wmusic_exit();Wskin_exit();
 }
 void Wgb_hid(const Hid_info* key){
  unsigned int bits=0;
@@ -184,13 +172,13 @@ static void play_selected(void){
  if(!count)return;Entry* e=&entries[selected];char path[160];struct stat info;
  snprintf(path,sizeof(path),ROOT "videos/%s",e->file);
  if(!stat(path,&info)&&info.st_size>0){
-  Wmega_begin();
+  Wmusic_stop();Wmega_begin();
   if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();
   if(!Vid_wgb_open(e->file,ROOT "videos/")){Menu_resume();snprintf(status,sizeof(status),"Video kon niet worden geopend.");}
- }else if(e->source[0]&&strstr(e->source,"mega.")){
+ }else if(e->stream[0]||(e->source[0]&&strstr(e->source,"mega."))){
   char stream_path[96];
-  if(!Wmega_path(e->source,stream_path,sizeof(stream_path))){snprintf(status,sizeof(status),"%s",Wmega_error());return;}
-  Wmega_begin();
+  if(!Wmega_path(e->stream[0]?e->stream:e->source,stream_path,sizeof(stream_path))){snprintf(status,sizeof(status),"%s",Wmega_error());return;}
+  Wmusic_stop();Wmega_begin();
   if(!Vid_query_init_flag())Vid_init(true);else Vid_resume();
   if(!Vid_wgb_open(stream_path,"")){Menu_resume();snprintf(status,sizeof(status),"Video kon niet worden geopend.");}
  }else if(e->url[0])start_job(2);
@@ -323,11 +311,14 @@ static void draw_modal(void){
  icon(WGB_FAVORITES,143,155,29,12,0);icon(WGB_PLAYLIST,187,155,29,13,0);
  if(status[0])Wskin_text(status,18,216,7,0xff202020,284,2);
 }
+static void text_button(const char* label,float x,float y,float w,int action,int value);
 static void settings(void){
+ Wskin_text(catalog_status,18,216,7,0xff222222,284,2);
  Wskin_image(WGB_PANEL,15,55,290,151);text_center("INSTELLINGEN",35,69,250,13,0xff222222);
  icon(WGB_REFRESH,46,108,40,14,0);Wskin_text("Verversen",37,152,8,0xff222222,70,1);
  icon(WGB_PLAYLIST,140,108,40,15,0);Wskin_text("Mijn playlist",131,152,8,0xff222222,80,1);
  icon(WGB_CLOSE,233,108,40,16,0);Wskin_text("Afsluiten",227,152,8,0xff222222,70,1);
+ text_button(Wmusic_status(),40,174,240,28,0);
 }
 static void text_button(const char* label,float x,float y,float w,int action,int value){Wskin_round(x,y,w,23,5,0xff00ccff);text_center(label,x+3,y+6,w-6,8,0xff222222);hit(x,y,w,23,action,value);}
 static void draw_profiles(void){
@@ -367,6 +358,7 @@ static void dispatch(int action,int value){
  case 14:start_job(1);break;
  case 15:change_screen(4);rebuild();break;
  case 16:Menu_set_must_exit_flag(true);break;
+ case 28:Wmusic_toggle();break;
  case 17:change_screen(7);break;
  case 20:if(value<profile_count){active_profile=value;save_profiles();history_count=0;set_screen(0);rebuild();}break;
  case 21:if(value<profile_count)edit_profile(value);break;
@@ -377,7 +369,7 @@ static void dispatch(int action,int value){
   if(!editing.name[0]){choose_profile_name();if(!editing.name[0])break;}
   WgbProfile old[4];memcpy(old,profiles,sizeof(old));int old_count=profile_count;uint32_t old_id=next_profile_id;
   if(edit_index<0&&profile_count<4){profiles[profile_count++]=editing;next_profile_id++;}else if(edit_index>=0)profiles[edit_index]=editing;
-  if(save_profiles()){status[0]=0;go_back();}else{memcpy(profiles,old,sizeof(old));profile_count=old_count;next_profile_id=old_id;snprintf(status,sizeof(status),"Profiel opslaan mislukt. Controleer je SD-kaart.");}break;
+  if(save_profiles()){status[0]=0;go_back();}else{memcpy(profiles,old,sizeof(old));profile_count=old_count;next_profile_id=old_id;snprintf(status,sizeof(status),"Profiel opslaan mislukt (SD-fout %d).",storage_errno);}break;
  }
  case 26:change_screen(9);break;
  case 27:if(edit_index>=0&&profile_count>1){for(int i=edit_index;i+1<profile_count;i++)profiles[i]=profiles[i+1];profile_count--;if(active_profile>edit_index)active_profile--;else if(active_profile==edit_index)active_profile=0;save_profiles();go_back();go_back();}break;
@@ -395,6 +387,7 @@ static void handle_touch(unsigned int packet){
  for(int i=hit_count-1;i>=0;i--){Hit* h=&hits[i];if(x>=h->x&&x<h->x+h->w&&y>=h->y&&y<h->y+h->h){pending_action=h->action;pending_value=h->value;pressed_at=osGetTime();break;}}
 }
 void Wgb_main(void){
+ Wmusic_tick();
  if(first){first=false;loading_time=scene_time=osGetTime();rebuild();start_job(1);}
  if(worker&&__atomic_load_n(&done,__ATOMIC_ACQUIRE)){
   threadJoin(worker,UINT64_MAX);threadFree(worker);worker=NULL;

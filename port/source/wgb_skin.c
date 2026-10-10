@@ -53,7 +53,7 @@ void Wskin_text(const char* text,float x,float y,float size,uint32_t color,float
  }
 }
 void Wskin_thumb(const char* file,float x,float y,float w,float h){
- char path[160];snprintf(path,sizeof(path),"/3ds/WanagoBack/thumbs/%s.png",file);
+ char path[160];snprintf(path,sizeof(path),"sdmc:/3ds/WanagoBack/thumbs/%s.png",file);
  int slot=-1;unsigned long oldest=~0UL;++clock_tick;
  for(int i=0;i<8;i++){if(!strcmp(thumbs[i].path,path)){slot=i;break;}}
  if(slot<0){for(int i=0;i<8;i++)if(thumbs[i].used<oldest){oldest=thumbs[i].used;slot=i;}
