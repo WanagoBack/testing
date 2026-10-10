@@ -82,7 +82,15 @@
       "title": "Sjoebidoebidabidee",
       "category": "karaoke",
       "description": "De kabouters versieren de meisjes",
-      "megaUrl": "https://mega.nz/file/Fd4D0RBA#LuICZLPgXr6wQ9BM8a74rdbbE_GxNQYhBmMEmSX4bYs"
+      "megaUrl": "https://mega.nz/file/Fd4D0RBA#LuICZLPgXr6wQ9BM8a74rdbbE_GxNQYhBmMEmSX4bYs",
+      "megaUrl3ds": "https://mega.nz/file/5cgmkJaD#5iKcng3iA4oekGNr6uVHr4dZSWUotjZyplGoNHjIECA",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/5cgmkJaD#5iKcng3iA4oekGNr6uVHr4dZSWUotjZyplGoNHjIECA"
+        }
+      ]
     },
     {
       "folder": "InDeKijker",
