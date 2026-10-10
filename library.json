@@ -199,7 +199,15 @@
       "category": "films",
       "description": "Plop en zijn vrienden gaan naar de Zuidpool om Pinki de pinguïn weer veilig thuis te krijgen",
       "year": 2007,
-      "megaUrl": "https://mega.nz/file/Q64WwIQa#RlChI-sFNEODLFw7TRWF7uEnBuwVJ6S9Y9OYs78SY8A"
+      "megaUrl": "https://mega.nz/file/Q64WwIQa#RlChI-sFNEODLFw7TRWF7uEnBuwVJ6S9Y9OYs78SY8A",
+      "megaUrl3ds": "https://mega.nz/file/hZJzlJDI#eBdFoo1jINtV0hCtv7GceCwuofJwufaWo8-87fYQfMU",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/hZJzlJDI#eBdFoo1jINtV0hCtv7GceCwuofJwufaWo8-87fYQfMU"
+        }
+      ]
     },
     {
       "folder": "Plop",
