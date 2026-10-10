@@ -3,7 +3,7 @@
  * Partial reads cannot verify MEGA's whole-file MAC; HTTPS is always verified. */
 #include "wgb_mega.h"
 #include <curl/curl.h>
-#include <mbedtls/aes.h>
+#include "libavutil/aes_ctr.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +20,7 @@
 #define WMEGA_API "https://g.api.mega.co.nz/cs?id=1"
 #endif
 struct Wmega_stream {
- CURL* curl;mbedtls_aes_context aes;uint8_t nonce[8];char handle[9],url[2048];
+ CURL* curl;struct AVAESCTR* aes;uint8_t nonce[8];char handle[9],url[2048];
  int64_t size,pos,start[2];size_t length[2];uint8_t* block[2];unsigned next,generation;
 };
 static unsigned cancelled,busy,error_code,generation;
@@ -109,10 +109,10 @@ Wmega_stream* Wmega_open(const char* path){
  error(E_NONE);__atomic_store_n(&busy,1,__ATOMIC_RELAXED);
  Wmega_stream* s=calloc(1,sizeof(*s));uint8_t key[32]={0};
  if(!s){error(E_MEMORY);goto fail;}
- s->generation=__atomic_load_n(&generation,__ATOMIC_RELAXED);mbedtls_aes_init(&s->aes);s->start[0]=s->start[1]=-1;
+ s->generation=__atomic_load_n(&generation,__ATOMIC_RELAXED);s->aes=av_aes_ctr_alloc();if(!s->aes){error(E_MEMORY);goto fail;}s->start[0]=s->start[1]=-1;
  if(!parse_link(path,s->handle,key)){error(E_LINK);goto fail;}
  memcpy(s->nonce,key+16,8);for(int i=0;i<16;i++)key[i]^=key[i+16];
- if(mbedtls_aes_setkey_enc(&s->aes,key,128)){error(E_KEY);goto fail;}
+ if(av_aes_ctr_init(s->aes,key)){error(E_KEY);goto fail;}
  s->curl=connection(s);s->block[0]=malloc(BLOCK);s->block[1]=malloc(BLOCK);
  if(!s->curl||!s->block[0]||!s->block[1]){error(E_MEMORY);goto fail;}
  if(!metadata(s))goto fail;
@@ -129,9 +129,10 @@ static bool fetch_block(Wmega_stream* s,unsigned slot,int64_t start){
   if(http==509){error(E_QUOTA);break;}
   if((http==403||http==410)&&attempt==0){if(metadata(s))continue;break;}
   if(rc==CURLE_OK&&http==200&&out.used==size){
-   uint8_t ctr[16]={0},stream[16]={0};size_t offset=0;memcpy(ctr,s->nonce,8);uint64_t block=(uint64_t)start/16;
+   uint8_t ctr[16]={0};memcpy(ctr,s->nonce,8);uint64_t block=(uint64_t)start/16;
    for(int i=15;i>=8;i--){ctr[i]=(uint8_t)block;block>>=8;}
-   if(mbedtls_aes_crypt_ctr(&s->aes,size,&offset,ctr,stream,s->block[slot],s->block[slot])){error(E_KEY);break;}
+   av_aes_ctr_set_full_iv(s->aes,ctr);
+   av_aes_ctr_crypt(s->aes,s->block[slot],s->block[slot],(int)size);
    s->start[slot]=start;s->length[slot]=size;error(E_NONE);__atomic_store_n(&busy,0,__ATOMIC_RELAXED);return true;
   }
   error(E_NET);
@@ -153,4 +154,4 @@ int64_t Wmega_seek(Wmega_stream* s,int64_t offset,int whence){
  if(base<0||(offset>0&&base>INT64_MAX-offset)||(offset<0&&offset< -base))return -EINVAL;
  int64_t target=base+offset;if(target<0||target>s->size)return -EINVAL;s->pos=target;return target;
 }
-void Wmega_close(Wmega_stream* s){if(!s)return;if(s->curl)curl_easy_cleanup(s->curl);mbedtls_aes_free(&s->aes);for(int i=0;i<2;i++){if(s->block[i]){memset(s->block[i],0,BLOCK);free(s->block[i]);}}memset(s,0,sizeof(*s));free(s);}
+void Wmega_close(Wmega_stream* s){if(!s)return;if(s->curl)curl_easy_cleanup(s->curl);if(s->aes)av_aes_ctr_free(s->aes);for(int i=0;i<2;i++){if(s->block[i]){memset(s->block[i],0,BLOCK);free(s->block[i]);}}memset(s,0,sizeof(*s));free(s);}
