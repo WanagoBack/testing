@@ -1,0 +1,545 @@
+diff --git a/Makefile b/Makefile
+index d3c66bc..f273c66 100644
+--- a/Makefile
++++ b/Makefile
+@@ -31,7 +31,7 @@ include $(DEVKITARM)/3ds_rules
+ #     - icon.png
+ #     - <libctru folder>/default_icon.png
+ #---------------------------------------------------------------------------------
+-TARGET		:=	$(notdir $(CURDIR))
++TARGET		:=	WanagoBack
+ BUILD		:=	build
+ SOURCES		:=	source source/system source/system/util source/system/draw
+ DATA		:=	data
+@@ -40,12 +40,12 @@ GRAPHICS	:=	gfx
+ ROMFS		:=	romfs
+ GFXBUILD	:=	$(ROMFS)/gfx
+ #---------------------------------------------------------------------------------
+-APP_VER				:= 1152
+-APP_TITLE			:= Video player for 3DS
+-APP_DESCRIPTION		:= Video player for 3DS v1.8.0
+-APP_AUTHOR			:= Core_2_Extreme
+-PRODUCT_CODE		:= CTR-Vid
+-UNIQUE_ID			:= 0xEC600
++APP_VER				:= 1158
++APP_TITLE			:= WanagoBack
++APP_DESCRIPTION		:= WanagoBack New 3DS 1.0 RC1
++APP_AUTHOR			:= WanagoBack / Core_2_Extreme
++PRODUCT_CODE		:= CTR-WGB
++UNIQUE_ID			:= 0xEC610
+ 
+ BANNER_AUDIO		:= resource/banner.wav
+ BANNER_IMAGE		:= resource/banner.png
+diff --git a/include/system/menu.h b/include/system/menu.h
+index d08e1ac..5b954a4 100644
+--- a/include/system/menu.h
++++ b/include/system/menu.h
+@@ -3,8 +3,8 @@
+ #include <stdbool.h>
+ #include <stdint.h>
+ 
+-#define DEF_MENU_MAIN_DIR				/*(const char*)(*/"/3ds/Video_player/"/*)*/
+-#define DEF_MENU_CURRENT_APP_NAME_PLAIN	/*(const char*)(*/"Video player for 3DS"/*)*/
++#define DEF_MENU_MAIN_DIR				/*(const char*)(*/"/3ds/WanagoBack/"/*)*/
++#define DEF_MENU_CURRENT_APP_NAME_PLAIN	/*(const char*)(*/"WanagoBack 3DS"/*)*/
+ #define DEF_MENU_CURRENT_APP_VER		/*(const char*)(*/"1.8.0"/*)*/
+ #define DEF_MENU_CURRENT_APP_VER_INT	(uint32_t)(1152)
+ 
+diff --git a/include/system/sem.h b/include/system/sem.h
+index 58d57a2..acbf210 100644
+--- a/include/system/sem.h
++++ b/include/system/sem.h
+@@ -42,7 +42,7 @@ typedef uint8_t Sem_model;
+ //You need to enable DEF_CONVERTER_SW_API_ENABLE **and** DEF_ENCODER_VIDEO_AUDIO_API_ENABLE as well to use screen recorder.
+ #define DEF_SEM_ENABLE_SCREEN_RECORDER		/*(bool)(*/false/*)*/
+ //You need to enable DEF_CURL_API_ENABLE as well to use updater.
+-#define DEF_SEM_ENABLE_UPDATER				/*(bool)(*/true/*)*/
++#define DEF_SEM_ENABLE_UPDATER				/*(bool)(*/false/*)*/
+ 
+ typedef struct
+ {
+diff --git a/source/main.c b/source/main.c
+index ab6c018..fac80e0 100644
+--- a/source/main.c
++++ b/source/main.c
+@@ -5,6 +5,7 @@
+ #include "3ds.h"
+ 
+ #include "system/menu.h"
++#include "wanagoback.h"
+ 
+ //Defines.
+ //N/A.
+@@ -22,6 +23,7 @@
+ int main(void)
+ {
+ 	Menu_init();
++	Wgb_init();
+ 
+ 	// Main loop
+ 	while (aptMainLoop())
+@@ -32,6 +34,7 @@ int main(void)
+ 		Menu_main();
+ 	}
+ 
++	Wgb_exit();
+ 	Menu_exit();
+ 	return 0;
+ }
+diff --git a/source/system/menu.c b/source/system/menu.c
+index e0ffce5..3e35a14 100644
+--- a/source/system/menu.c
++++ b/source/system/menu.c
+@@ -1,3 +1,4 @@
++#include "wanagoback.h"
+ //Includes.
+ #include "system/menu.h"
+ 
+@@ -224,17 +225,10 @@ void Menu_init(void)
+ 	Sem_get_config(&config);
+ 	Sem_get_state(&state);
+ 
+-	if(config.screen_mode == DEF_SEM_SCREEN_MODE_AUTO)
+-	{
+-		if(osGet3DSliderState())
+-			is_3d = true;
+-		else
+-			is_800px = true;
+-	}
+-	else if(config.screen_mode == DEF_SEM_SCREEN_MODE_800PX)
+-		is_800px = true;
+-	else if(config.screen_mode == DEF_SEM_SCREEN_MODE_3D)
+-		is_3d = true;
++	// WanagoBack renders once at native 400x240; never enable stereo/800px.
++	config.screen_mode = DEF_SEM_SCREEN_MODE_400PX;
++	Sem_set_config(&config);
++	is_3d = false;is_800px = false;
+ 
+ 	DEF_LOG_RESULT_SMART(result, Draw_init(is_800px, is_3d), (result == DEF_SUCCESS), result);
+ 
+@@ -514,6 +508,7 @@ void Menu_remove_worker_thread_callback(void (*const callback)(void))
+ 
+ void Menu_main(void)
+ {
++	if(menu_main_run && Wgb_ready()){Wgb_main();return;}
+ 	bool is_800px = false;
+ 	bool is_3d = false;
+ 	uint32_t color = DEF_DRAW_BLACK;
+@@ -524,34 +519,8 @@ void Menu_main(void)
+ 	Sem_get_config(&config);
+ 	Sem_get_state(&state);
+ 
+-	is_800px = (config.screen_mode == DEF_SEM_SCREEN_MODE_800PX);
+-	is_3d = (config.screen_mode == DEF_SEM_SCREEN_MODE_3D);
+-	if(config.screen_mode == DEF_SEM_SCREEN_MODE_AUTO)
+-	{
+-		if(osGet3DSliderState())
+-		{
+-			is_3d = true;
+-			is_800px = false;
+-		}
+-		else
+-		{
+-			is_3d = false;
+-			is_800px = ((state.console_model == DEF_SEM_MODEL_OLD2DS) ? false : true);
+-		}
+-	}
+-
+-	if(state.console_model == DEF_SEM_MODEL_OLD2DS && is_800px)
+-	{
+-		is_800px = false;
+-		config.screen_mode = DEF_SEM_SCREEN_MODE_AUTO;
+-		Sem_set_config(&config);
+-	}
+-	if((state.console_model == DEF_SEM_MODEL_OLD2DS || state.console_model == DEF_SEM_MODEL_NEW2DSXL) && is_3d)
+-	{
+-		is_3d = false;
+-		config.screen_mode = DEF_SEM_SCREEN_MODE_AUTO;
+-		Sem_set_config(&config);
+-	}
++	is_800px = false;
++	is_3d = false;
+ 
+ 	//Update screen mode here.
+ 	if(is_3d != Draw_is_3d_mode() || is_800px != Draw_is_800px_mode())
+@@ -969,6 +938,7 @@ static void Menu_hid_callback(void)
+ 	Hid_info key = { 0, };
+ 
+ 	Util_hid_query_key_state(&key);
++	if(menu_main_run && Wgb_ready()){Wgb_hid(&key);return;}
+ 	if(menu_main_run)
+ 	{
+ 		if(!aptShouldJumpToHome())
+diff --git a/source/system/util/decoder.c b/source/system/util/decoder.c
+index a64ddac..285daed 100644
+--- a/source/system/util/decoder.c
++++ b/source/system/util/decoder.c
+@@ -1,5 +1,6 @@
+ //Includes.
+ #include "system/util/decoder.h"
++#include "wgb_mega.h"
+ 
+ #include <inttypes.h>
+ #include <stdbool.h>
+@@ -43,6 +44,17 @@ static void Util_decoder_mvd_exit(uint8_t session);
+ static void Util_decoder_subtitle_exit(uint8_t session);
+ #endif //DEF_DECODER_VIDEO_AUDIO_API_ENABLE
+ 
++#if DEF_DECODER_VIDEO_AUDIO_API_ENABLE
++static AVIOContext* wgb_io[DEF_DECODER_MAX_SESSIONS];
++static Wmega_stream* wgb_stream[DEF_DECODER_MAX_SESSIONS];
++static int wgb_read(void* opaque,uint8_t* data,int count){int n=Wmega_read(opaque,data,count);return n==0?AVERROR_EOF:n;}
++static int64_t wgb_seek(void* opaque,int64_t offset,int whence){return Wmega_seek(opaque,offset,whence);}
++static void wgb_close(uint8_t session){
++ if(wgb_io[session]){av_freep(&wgb_io[session]->buffer);avio_context_free(&wgb_io[session]);}
++ Wmega_close(wgb_stream[session]);wgb_stream[session]=NULL;
++}
++#endif
++
+ //Variables.
+ #if DEF_DECODER_VIDEO_AUDIO_API_ENABLE
+ static bool util_audio_decoder_init[DEF_DECODER_MAX_SESSIONS][DEF_DECODER_MAX_AUDIO_TRACKS] = { 0, };
+@@ -495,7 +507,21 @@ uint32_t Util_decoder_open_file(const char* path, uint8_t* num_of_audio_tracks,
+ 		goto ffmpeg_api_failed;
+ 	}
+ 
+-	ffmpeg_result = avformat_open_input(&util_decoder_format_context[session], path, NULL, NULL);
++	bool mega = !strncmp(path,WMEGA_PREFIX,8);
++ if(mega){
++  wgb_stream[session]=Wmega_open(path);
++  if(!wgb_stream[session])goto ffmpeg_api_failed;
++  unsigned char* buffer=av_malloc(64*1024);
++  if(!buffer)goto ffmpeg_api_failed;
++  wgb_io[session]=avio_alloc_context(buffer,64*1024,0,wgb_stream[session],wgb_read,NULL,wgb_seek);
++  if(!wgb_io[session]){av_free(buffer);goto ffmpeg_api_failed;}
++  wgb_io[session]->seekable=AVIO_SEEKABLE_NORMAL;
++  util_decoder_format_context[session]->pb=wgb_io[session];
++  util_decoder_format_context[session]->flags|=AVFMT_FLAG_CUSTOM_IO;
++ }
++ char local_path[2048];const char* input_path=path;
++ if(!strncmp(path,"sdmc:/",6)){snprintf(local_path,sizeof(local_path),"file:%s",path);input_path=local_path;}
++ ffmpeg_result = avformat_open_input(&util_decoder_format_context[session], mega?NULL:input_path, NULL, NULL);
+ 	if(ffmpeg_result != 0)
+ 	{
+ 		DEF_LOG_RESULT(avformat_open_input, false, ffmpeg_result);
+@@ -550,11 +576,13 @@ uint32_t Util_decoder_open_file(const char* path, uint8_t* num_of_audio_tracks,
+ 	return DEF_ERR_ALREADY_INITIALIZED;
+ 
+ 	ffmpeg_api_failed:
+-	avformat_free_context(util_decoder_format_context[session]);
++	avformat_close_input(&util_decoder_format_context[session]);
++ wgb_close(session);
+ 	return DEF_ERR_FFMPEG_RETURNED_NOT_SUCCESS;
+ 
+ 	other:
+-	avformat_free_context(util_decoder_format_context[session]);
++	avformat_close_input(&util_decoder_format_context[session]);
++ wgb_close(session);
+ 	return DEF_ERR_OTHER;
+ }
+ 
+@@ -701,10 +729,17 @@ uint32_t Util_decoder_video_init(uint8_t low_resolution, uint8_t num_of_video_tr
+ 			goto ffmpeg_api_failed;
+ 		}
+ 
+-		if(util_video_decoder_codec[session][i]->max_lowres < low_resolution)
++        uint8_t target_resolution=low_resolution;
++        if(target_resolution==255){
++            target_resolution=0;
++            int h=util_video_decoder_context[session][i]->height;
++            while(target_resolution<util_video_decoder_codec[session][i]->max_lowres
++                && target_resolution<3 && (h>>(target_resolution+1))>=240)target_resolution++;
++        }
++		if(util_video_decoder_codec[session][i]->max_lowres < target_resolution)
+ 			util_video_decoder_context[session][i]->lowres = util_video_decoder_codec[session][i]->max_lowres;
+ 		else
+-			util_video_decoder_context[session][i]->lowres = low_resolution;
++			util_video_decoder_context[session][i]->lowres = target_resolution;
+ 
+ 		util_video_decoder_context[session][i]->flags = AV_CODEC_FLAG_OUTPUT_CORRUPT;
+ 
+@@ -2811,6 +2846,7 @@ void Util_decoder_close_file(uint8_t session)
+ 	util_decoder_cache_packet_current_index[session] = 0;
+ 	util_decoder_cache_packet_ready_index[session] = 0;
+ 	avformat_close_input(&util_decoder_format_context[session]);
++ wgb_close(session);
+ }
+ 
+ static void Util_decoder_audio_exit(uint8_t session)
+diff --git a/source/video_player.c b/source/video_player.c
+index 37c50bc..77a32f5 100644
+--- a/source/video_player.c
++++ b/source/video_player.c
+@@ -1,3 +1,5 @@
++#include "wanagoback.h"
++#include "wgb_mega.h"
+ //Includes.
+ #include "video_player.h"
+ 
+@@ -767,6 +769,24 @@ bool Vid_query_running_flag(void)
+ 	return vid_player.main_run;
+ }
+ 
++static bool wgb_video_attached = false;
++/* Release/acquire handoff: menu textures may only return after decoder cleanup. */
++static unsigned wgb_close_state;
++static void Vid_wgb_request_close(void)
++{
++ if(__atomic_load_n(&wgb_close_state,__ATOMIC_ACQUIRE))return;
++ __atomic_store_n(&wgb_close_state,1,__ATOMIC_RELEASE);
++ Wmega_cancel();Util_err_set_show_flag(false);
++ if(Util_queue_add(&vid_player.decode_thread_command_queue,DECODE_THREAD_ABORT_REQUEST,NULL,
++    QUEUE_OP_TIMEOUT_US,QUEUE_OPTION_NONE)!=DEF_SUCCESS)
++  __atomic_store_n(&wgb_close_state,0,__ATOMIC_RELEASE);
++}
++static void Vid_wgb_closed(void)
++{
++ if(__atomic_load_n(&wgb_close_state,__ATOMIC_ACQUIRE)==1)
++  __atomic_store_n(&wgb_close_state,2,__ATOMIC_RELEASE);
++}
++
+ void Vid_hid(const Hid_info* key)
+ {
+ 	uint32_t result = DEF_ERR_OTHER;
+@@ -776,6 +796,30 @@ void Vid_hid(const Hid_info* key)
+ 	if(!key)
+ 		return;
+ 
++
++ if(wgb_video_attached && (DEF_HID_PHY_PR(key->b)||(DEF_HID_PHY_RE(key->touch)&&key->touch_x_last<38&&key->touch_y_last<36))){
++  Vid_wgb_request_close();return;
++ }
++ if(wgb_video_attached && __atomic_load_n(&wgb_close_state,__ATOMIC_ACQUIRE))return;
++ if(wgb_video_attached && !aptShouldJumpToHome() && !Util_err_query_show_flag())
++ {
++  double value=0;int command=Wgb_video_input(key,&value);
++  if(command==2){
++   Vid_wgb_request_close();return;
++  }
++  if(command==1){
++   Vid_command next=DECODE_THREAD_RESUME_REQUEST;
++   if(vid_player.state==PLAYER_STATE_IDLE)next=DECODE_THREAD_PLAY_REQUEST;
++   else if(vid_player.state==PLAYER_STATE_PLAYING || (vid_player.sub_state&PLAYER_SUB_STATE_RESUME_LATER))next=DECODE_THREAD_PAUSE_REQUEST;
++   Util_queue_add(&vid_player.decode_thread_command_queue,next,NULL,QUEUE_OP_TIMEOUT_US,QUEUE_OPTION_DO_NOT_ADD_IF_EXIST);
++  }
++  if((command==3||command==4)&&vid_player.media_duration>0){
++   double target=command==3?vid_player.media_current_pos+value:vid_player.media_duration*value;
++   vid_player.seek_pos=fmin(vid_player.media_duration,fmax(0,target));
++   Util_queue_add(&vid_player.decode_thread_command_queue,DECODE_THREAD_SEEK_REQUEST,NULL,QUEUE_OP_TIMEOUT_US,QUEUE_OPTION_NONE);
++  }
++  return;
++ }
+ 	if(vid_player.is_setting_volume || vid_player.is_setting_seek_duration)
+ 		return;
+ 
+@@ -1734,6 +1778,9 @@ void Vid_exit(bool draw)
+ 
+ void Vid_main(void)
+ {
++ if(wgb_video_attached && __atomic_load_n(&wgb_close_state,__ATOMIC_ACQUIRE)==2){
++  wgb_video_attached=false;Util_err_set_show_flag(false);Vid_suspend();return;
++ }
+ 	uint8_t subtitle_index = UINT8_MAX;
+ 	uint32_t color = DEF_DRAW_BLACK;
+ 	uint32_t disabled_color = DEF_DRAW_WEAK_BLACK;
+@@ -2344,7 +2391,7 @@ void Vid_main(void)
+ 			Util_str_free(&bottom_center_msg);
+ 		}
+ 
+-		if(config.is_bottom_lcd_on)
++		if(config.is_bottom_lcd_on && (!wgb_video_attached || Util_err_query_show_flag()))
+ 		{
+ 			if(state.console_model == DEF_SEM_MODEL_OLD2DS && vid_player.turn_off_bottom_screen_count == 0 && vid_player.is_full_screen)
+ 				Draw_screen_ready(DRAW_SCREEN_BOTTOM, DEF_DRAW_BLACK);//OLD2DS can't turn only bottom screen off, so just fill with black.
+@@ -3181,6 +3228,11 @@ void Vid_main(void)
+ 			}
+ 		}
+ 
++
++  if(wgb_video_attached && !Util_err_query_show_flag())
++   Wgb_video_draw(vid_player.media_current_pos,vid_player.media_duration,
++    vid_player.state==PLAYER_STATE_PAUSE||vid_player.state==PLAYER_STATE_IDLE,
++    vid_player.state==PLAYER_STATE_BUFFERING||vid_player.state==PLAYER_STATE_PREPARE_PLAYING);
+ 		Draw_apply_draw();
+ 
+ 		Util_str_free(&format_str);
+@@ -3384,7 +3436,8 @@ static void Vid_change_video_size(double change_px, Vid_eye eye_index)
+ 
+ static void Vid_enter_full_screen(uint32_t bottom_screen_timeout)
+ {
+-	vid_player.turn_off_bottom_screen_count = bottom_screen_timeout;
++	vid_player.turn_off_bottom_screen_count = wgb_video_attached ? 0 : bottom_screen_timeout;
++ if(wgb_video_attached)vid_player.show_full_screen_msg=false;
+ 	vid_player.is_full_screen = true;
+ }
+ 
+@@ -3438,6 +3491,16 @@ static void Vid_decrease_screen_brightness(void)
+ 
+ static void Vid_control_full_screen(void)
+ {
++ /* The native touchscreen is the controller, never the fullscreen blackout panel. */
++ if(wgb_video_attached){
++  Sem_config config={0};Sem_get_config(&config);
++  vid_player.turn_off_bottom_screen_count=0;
++  if(!config.is_bottom_lcd_on||config.bottom_lcd_brightness!=config.top_lcd_brightness){
++   config.is_bottom_lcd_on=true;config.bottom_lcd_brightness=config.top_lcd_brightness;Sem_set_config(&config);
++  }
++  return;
++ }
++
+ 	if(vid_player.turn_off_bottom_screen_count > 0)
+ 	{
+ 		Sem_config config = { 0, };
+@@ -4484,17 +4547,17 @@ void Vid_init_thread(void* arg)
+ 	vid_player.thread_suspend = true;
+ 	if(DEF_SEM_MODEL_IS_NEW(state.console_model))
+ 	{
+-		vid_player.decode_thread = threadCreate(Vid_decode_thread, NULL, DEF_THREAD_STACKSIZE, DEF_THREAD_PRIORITY_HIGH, 0, false);
++		vid_player.decode_thread = threadCreate(Vid_decode_thread, NULL, 256 * 1024, DEF_THREAD_PRIORITY_HIGH, 0, false);
+ 		vid_player.decode_video_thread = threadCreate(Vid_decode_video_thread, NULL, 1024 * 1024, DEF_THREAD_PRIORITY_ABOVE_NORMAL, Util_is_core_available(2) ? 2 : 0, false);
+ 		vid_player.convert_thread = threadCreate(Vid_convert_thread, NULL, DEF_THREAD_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 0, false);
+-		vid_player.read_packet_thread = threadCreate(Vid_read_packet_thread, NULL, DEF_THREAD_STACKSIZE, DEF_THREAD_PRIORITY_REALTIME, 1, false);
++		vid_player.read_packet_thread = threadCreate(Vid_read_packet_thread, NULL, 256 * 1024, DEF_THREAD_PRIORITY_REALTIME, 1, false);
+ 	}
+ 	else
+ 	{
+-		vid_player.decode_thread = threadCreate(Vid_decode_thread, NULL, DEF_THREAD_STACKSIZE, DEF_THREAD_PRIORITY_HIGH, 0, false);
++		vid_player.decode_thread = threadCreate(Vid_decode_thread, NULL, 256 * 1024, DEF_THREAD_PRIORITY_HIGH, 0, false);
+ 		vid_player.decode_video_thread = threadCreate(Vid_decode_video_thread, NULL, 1024 * 1024, DEF_THREAD_PRIORITY_ABOVE_NORMAL, 0, false);
+ 		vid_player.convert_thread = threadCreate(Vid_convert_thread, NULL, DEF_THREAD_STACKSIZE, DEF_THREAD_PRIORITY_NORMAL, 1, false);
+-		vid_player.read_packet_thread = threadCreate(Vid_read_packet_thread, NULL, DEF_THREAD_STACKSIZE, DEF_THREAD_PRIORITY_REALTIME, 1, false);
++		vid_player.read_packet_thread = threadCreate(Vid_read_packet_thread, NULL, 256 * 1024, DEF_THREAD_PRIORITY_REALTIME, 1, false);
+ 	}
+ 
+ 	vid_player.inited = true;
+@@ -4723,7 +4786,8 @@ void Vid_decode_thread(void* arg)
+ 						Util_str_add(&path, vid_player.file.name);
+ 
+ 						//Generate cache file name.
+-						if(Util_str_has_data(&path))
++						if(!strncmp(vid_player.file.name,WMEGA_PREFIX,8)){char safe[40];snprintf(safe,sizeof(safe),"stream_%.8s",vid_player.file.name+8);Util_str_set(&cache_file_name,safe);}
++						else if(Util_str_has_data(&path))
+ 						{
+ 							for(uint32_t i = 0; i < path.length; i++)
+ 							{
+@@ -4738,6 +4802,7 @@ void Vid_decode_thread(void* arg)
+ 							}
+ 						}
+ 
++						if(wgb_video_attached)Wgb_video_stage("Bron openen en metadata lezen");
+ 						DEF_LOG_RESULT_SMART(result, Util_decoder_open_file(path.buffer, &num_of_audio_tracks, &num_of_video_tracks,
+ 						&num_of_subtitle_tracks, DEF_VID_DECORDER_SESSION_ID), (result == DEF_SUCCESS), result);
+ 
+@@ -4777,6 +4842,7 @@ void Vid_decode_thread(void* arg)
+ 								//Continue initialization.
+ 							}
+ 
++							if(wgb_video_attached)Wgb_video_stage("Audiodecoder starten");
+ 							DEF_LOG_RESULT_SMART(result, Util_decoder_audio_init(num_of_audio_tracks, DEF_VID_DECORDER_SESSION_ID), (result == DEF_SUCCESS), result);
+ 							if(result == DEF_SUCCESS)
+ 							{
+@@ -4812,9 +4878,10 @@ void Vid_decode_thread(void* arg)
+ 							Media_thread_type request_thread_type = vid_player.use_multi_threaded_decoding ? vid_player.thread_mode : MEDIA_THREAD_TYPE_NONE;
+ 
+ 							//Video player only supports up to EYE_MAX tracks, decoder may support more so cap it here.
+-							num_of_video_tracks = Util_min(num_of_video_tracks, EYE_MAX);
++							num_of_video_tracks = Util_min(num_of_video_tracks, wgb_video_attached ? 1 : EYE_MAX);
+ 
+-							DEF_LOG_RESULT_SMART(result, Util_decoder_video_init(vid_player.lower_resolution, num_of_video_tracks,
++							if(wgb_video_attached)Wgb_video_stage("Videodecoder starten");
++							DEF_LOG_RESULT_SMART(result, Util_decoder_video_init(wgb_video_attached ? 255 : vid_player.lower_resolution, num_of_video_tracks,
+ 							request_threads, request_thread_type, DEF_VID_DECORDER_SESSION_ID), (result == DEF_SUCCESS), result);
+ 							if(result == DEF_SUCCESS)
+ 							{
+@@ -4877,6 +4944,7 @@ void Vid_decode_thread(void* arg)
+ 									}
+ 								}
+ 
++								if(wgb_video_attached){char phase[100];snprintf(phase,sizeof(phase),"Beeldbuffers maken: %ux%u",(unsigned)vid_player.video_info[0].width,(unsigned)vid_player.video_info[0].height);Wgb_video_stage(phase);}
+ 								//Allocate texture buffers.
+ 								for(uint8_t i = 0; i < VIDEO_BUFFERS; i++)
+ 								{
+@@ -4974,6 +5042,7 @@ void Vid_decode_thread(void* arg)
+ 							goto error;
+ 						}
+ 
++						if(wgb_video_attached)Wgb_video_stage("Decoders klaar, afspelen starten");
+ 						//Enter full-screen mode if file has video tracks.
+ 						if(vid_player.num_of_video_tracks > 0 && !Util_err_query_show_flag() && !Util_expl_query_show_flag())
+ 						{
+@@ -5056,7 +5125,9 @@ void Vid_decode_thread(void* arg)
+ 
+ 						error:
+ 						//An error occurred, reset everything.
+-						Util_err_set_show_flag(true);
++      if(!strncmp(vid_player.file.name,WMEGA_PREFIX,8))
++       Util_err_set_error_message("Video kon niet worden afgespeeld",Wmega_error()[0]?Wmega_error():"Videoformaat niet ondersteund of afspelen geannuleerd.","WanagoBack",result);
++						Util_err_set_show_flag(strncmp(vid_player.file.name,WMEGA_PREFIX,8)!=0 || !Wmega_cancelled());
+ 						Draw_set_refresh_needed(true);
+ 
+ 						//Log media info for better debugging.
+@@ -5232,6 +5303,7 @@ void Vid_decode_thread(void* arg)
+ 					{
+ 						vid_player.state = PLAYER_STATE_IDLE;
+ 						vid_player.sub_state = PLAYER_SUB_STATE_NONE;
++                        Vid_wgb_closed();
+ 
+ 						if(event == DECODE_THREAD_SHUTDOWN_REQUEST)
+ 						{
+@@ -5312,7 +5384,7 @@ void Vid_decode_thread(void* arg)
+ 					vid_player.seek_bar.selected = false;
+ 					vid_player.show_current_pos_until = 0;
+ 
+-					if(event == DECODE_THREAD_PLAY_NEXT_REQUEST && vid_player.playback_mode != PLAYBACK_NO_REPEAT)
++					if(event == DECODE_THREAD_PLAY_NEXT_REQUEST && !wgb_video_attached && vid_player.playback_mode != PLAYBACK_NO_REPEAT)
+ 					{
+ 						Vid_file* file_data = (Vid_file*)malloc(sizeof(Vid_file));
+ 
+@@ -5369,6 +5441,10 @@ void Vid_decode_thread(void* arg)
+ 					}
+ 
+ 					vid_player.sub_state = PLAYER_SUB_STATE_NONE;
++                    Vid_wgb_closed();
++                    /* A finished native video returns to its own details screen. */
++                    if(wgb_video_attached && event==DECODE_THREAD_PLAY_NEXT_REQUEST)
++                     __atomic_store_n(&wgb_close_state,2,__ATOMIC_RELEASE);
+ 
+ 					if(event == DECODE_THREAD_SHUTDOWN_REQUEST)
+ 					{
+@@ -5597,7 +5673,7 @@ void Vid_decode_thread(void* arg)
+ 
+ 			//If we only have half number of packets in buffer, we have not reached eof
+ 			//and read packet thread is inactive, send a read packet request.
+-			if((num_of_cached_packets < (DEF_DECODER_MAX_CACHE_PACKETS / 2)) && !is_read_packet_thread_active && !vid_player.is_eof)
++			if((num_of_cached_packets < (wgb_video_attached ? (DEF_DECODER_MAX_CACHE_PACKETS * 3 / 4) : (DEF_DECODER_MAX_CACHE_PACKETS / 2))) && !is_read_packet_thread_active && !vid_player.is_eof)
+ 			{
+ 				is_read_packet_thread_active = true;
+ 
+@@ -6815,3 +6891,27 @@ static void Vid_expl_cancel_callback(void)
+ {
+ 	//Do nothing.
+ }
++
++/* Native WanagoBack entry point, called from the rendering thread after Vid_init. */
++bool Vid_wgb_open(const char* name,const char* directory)
++{
++ if(!name||!directory||!Vid_query_init_flag())return false;
++ Vid_file* file_data=calloc(1,sizeof(Vid_file));
++ if(!file_data)return false;
++ if(strlen(name)>=sizeof(file_data->name)||strlen(directory)>=sizeof(file_data->directory)){free(file_data);return false;}
++ snprintf(file_data->name,sizeof(file_data->name),"%s",name);
++ snprintf(file_data->directory,sizeof(file_data->directory),"%s",directory);
++ file_data->index=0;
++ /* Native playback keeps audio moving when decoding cannot keep up. */
++ vid_player.allow_skip_frames=true;
++ vid_player.allow_skip_key_frames=false;
++ vid_player.use_multi_threaded_decoding=true;
++ vid_player.num_of_threads=Vid_get_default_num_of_threads();
++ vid_player.restart_playback_threshold=48;
++ __atomic_store_n(&wgb_close_state,0,__ATOMIC_RELEASE);
++ vid_player.playback_mode=PLAYBACK_NO_REPEAT;
++ wgb_video_attached=true;
++ uint32_t result=Util_queue_add(&vid_player.decode_thread_command_queue,DECODE_THREAD_PLAY_REQUEST,file_data,QUEUE_OP_TIMEOUT_US,QUEUE_OPTION_NONE);
++ if(result!=DEF_SUCCESS){wgb_video_attached=false;free(file_data);return false;}
++ return true;
++}
