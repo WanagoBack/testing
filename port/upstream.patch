@@ -1,5 +1,5 @@
 diff --git a/Makefile b/Makefile
-index d3c66bc..e794c31 100644
+index d3c66bc..16271f0 100644
 --- a/Makefile
 +++ b/Makefile
 @@ -31,7 +31,7 @@ include $(DEVKITARM)/3ds_rules
@@ -21,7 +21,7 @@ index d3c66bc..e794c31 100644
 -APP_AUTHOR			:= Core_2_Extreme
 -PRODUCT_CODE		:= CTR-Vid
 -UNIQUE_ID			:= 0xEC600
-+APP_VER				:= 1156
++APP_VER				:= 1157
 +APP_TITLE			:= WanagoBack
 +APP_DESCRIPTION		:= WanagoBack New 3DS prototype 0.4
 +APP_AUTHOR			:= WanagoBack / Core_2_Extreme
@@ -267,7 +267,7 @@ index a64ddac..285daed 100644
  
  static void Util_decoder_audio_exit(uint8_t session)
 diff --git a/source/video_player.c b/source/video_player.c
-index 37c50bc..ed44fbc 100644
+index 37c50bc..a17af78 100644
 --- a/source/video_player.c
 +++ b/source/video_player.c
 @@ -1,3 +1,5 @@
@@ -455,6 +455,15 @@ index 37c50bc..ed44fbc 100644
  						Draw_set_refresh_needed(true);
  
  						//Log media info for better debugging.
+@@ -5597,7 +5652,7 @@ void Vid_decode_thread(void* arg)
+ 
+ 			//If we only have half number of packets in buffer, we have not reached eof
+ 			//and read packet thread is inactive, send a read packet request.
+-			if((num_of_cached_packets < (DEF_DECODER_MAX_CACHE_PACKETS / 2)) && !is_read_packet_thread_active && !vid_player.is_eof)
++			if((num_of_cached_packets < (wgb_video_attached ? (DEF_DECODER_MAX_CACHE_PACKETS * 3 / 4) : (DEF_DECODER_MAX_CACHE_PACKETS / 2))) && !is_read_packet_thread_active && !vid_player.is_eof)
+ 			{
+ 				is_read_packet_thread_active = true;
+ 
 @@ -6815,3 +6870,25 @@ static void Vid_expl_cancel_callback(void)
  {
  	//Do nothing.
@@ -475,7 +484,7 @@ index 37c50bc..ed44fbc 100644
 + vid_player.allow_skip_key_frames=false;
 + vid_player.use_multi_threaded_decoding=true;
 + vid_player.num_of_threads=Vid_get_default_num_of_threads();
-+ vid_player.restart_playback_threshold=12;
++ vid_player.restart_playback_threshold=48;
 + wgb_video_attached=true;
 + uint32_t result=Util_queue_add(&vid_player.decode_thread_command_queue,DECODE_THREAD_PLAY_REQUEST,file_data,QUEUE_OP_TIMEOUT_US,QUEUE_OPTION_NONE);
 + if(result!=DEF_SUCCESS){wgb_video_attached=false;free(file_data);return false;}

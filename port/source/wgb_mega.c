@@ -11,7 +11,7 @@
 #include <limits.h>
 #define JSMN_STATIC
 #include "jsmn.h"
-#define BLOCK (512u*1024u)
+#define BLOCK (1024u*1024u)
 #define META_CAP 16384
 #ifndef WMEGA_CA_FILE
 #define WMEGA_CA_FILE "romfs:/gfx/cert/cacert.pem"
@@ -69,6 +69,7 @@ bool Wmega_path(const char* link,char* path,size_t capacity){
 static int progress(void* opaque,curl_off_t a,curl_off_t b,curl_off_t c,curl_off_t d){(void)opaque;(void)a;(void)b;(void)c;(void)d;return stopped(opaque)?1:0;}
 static CURL* connection(Wmega_stream* s){
  CURL* c=curl_easy_init();if(!c)return NULL;
+ curl_easy_setopt(c,CURLOPT_HTTP_VERSION,CURL_HTTP_VERSION_1_1);
  curl_easy_setopt(c,CURLOPT_CAINFO,WMEGA_CA_FILE);
  curl_easy_setopt(c,CURLOPT_SSL_VERIFYPEER,1L);curl_easy_setopt(c,CURLOPT_SSL_VERIFYHOST,2L);
  curl_easy_setopt(c,CURLOPT_PROTOCOLS_STR,"https");curl_easy_setopt(c,CURLOPT_REDIR_PROTOCOLS_STR,"https");

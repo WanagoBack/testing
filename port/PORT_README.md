@@ -1,4 +1,4 @@
-# WanagoBack voor New Nintendo 3DS — prototype 0.5
+# WanagoBack voor New Nintendo 3DS — prototype 0.6
 
 De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal verpakt met de oorspronkelijke Windows-textures. Dit is een prototype: installatie, audio, video en touchscreen zijn nog niet op een echte console getest.
 
@@ -15,6 +15,14 @@ De ARM-code van deze versie is gebouwd via GitHub Actions. De CIA wordt lokaal v
 - Optioneel `url3ds`: een directe HTTPS-link naar een geschikte MP4. Die wordt eerst volledig naar SD gedownload. Daarna druk je A om te kijken. B annuleert een download. Er is nog geen gedeeltelijke downloadhervatting of directe streaming.
 - Afzonderlijke app-ID 0xEC610. Dit is een gekozen homebrew-ID, geen officieel gereserveerde registratie. De upstream zelf-updater staat uit.
 
+## Herstel in 0.6
+
+De te kleine hervatbuffer uit 0.5 is teruggebracht naar 48 frames. Het ophalen van netwerkdata begint al wanneer driekwart van de packetbuffer over is, in plaats van pas bij de helft. MEGA-blokken zijn 1 MiB in plaats van 512 KiB (2 MiB cache totaal), zodat minder afzonderlijke HTTPS-verzoeken nodig zijn. De bestaande beveiligingen tegen te weinig geheugen en EOF blijven actief. Normaal vooruit downloaden toont niet langer een laadmelding zolang video gewoon speelt; alleen de echte buffering/opstartstatus doet dat. Langere buffers kunnen pauzes opvangen, maar verhelpen geen blijvend te trage verbinding of een te zware codec.
+
+De playlist-knop in een videovenster opent altijd de keuzelijst. Je ziet de originele playlist-icoontjes en NIEUWE PLAYLIST. Eén bewuste tik op een playlist voegt de video toe en sluit de kiezer, zoals in Windows. Openen en annuleren wijzigen niets; opnieuw dezelfde video toevoegen verwijdert niets en maakt geen dubbel item. Een nieuwe lijst vraagt naam en icoon, en voegt bij OPSLAAN de gekozen video toe. Verwijderen is een afzonderlijke actie vanuit de playlist met bevestiging. De geselecteerde video wordt op bestandsidentiteit vastgezet, zodat een online catalogusverversing de keuze niet naar de eerste video kan verschuiven.
+
+Aanraakgebaren krijgen de schermversie van het moment waarop de vinger het scherm raakt. Een losgelaten tik uit het vorige scherm wordt na navigatie verworpen. Dit voorkomt doorwerkende tikken tijdens de knopanimatie. De interfacefout is getest met een nagebootste reeks aanrakingen; nog niet op echte hardware.
+
 ## Nieuw in 0.5
 
 Tijdens video worden de menu-textures en thumbnailcache na GPU-synchronisatie vrijgegeven; alleen de bediening en het lettertype blijven staan. Bij terugkeer worden de menu-assets herladen. De oude onderliggende debug/bedieningsinterface wordt tijdens native weergave niet meer getekend (foutmeldingen blijven bereikbaar). De herbufferdrempel is 12 in plaats van 48 gedecodeerde frames; dit verlaagt wachttijd, maar kan op een trage verbinding vaker herbufferen. Dit zijn concrete aanpassingen, geen op hardware gemeten FPS-winst.
@@ -25,7 +33,7 @@ Onderzoek naar de gemelde crash bij In de kijker: de netwerklees- en opentaken h
 
 De oorspronkelijke fullscreen-timer dimde en schakelde het onderste scherm uit. Bij native WanagoBack-video blijft het touchscreen nu ingeschakeld, met dezelfde helderheid als het bovenste scherm. Terug, pauze en spoelen blijven zichtbaar.
 
-Favorieten en maximaal acht benoemde playlists worden per profiel opgeslagen met reservekopie en herstel. Open het hartje bovenaan voor Favorieten & Playlists. Maak, open, bewerk of verwijder je lijsten daar. Bij maken/bewerken kies je uit dezelfde 15 originele playlist-plaatjes als in de Windows-app. Playlists staan niet meer in Instellingen. In het gele videovenster opent het playlist-icoon een keuzelijst; tik op een lijst om de video toe te voegen of eruit te verwijderen. Een ster geeft aan dat de video al in die lijst staat. De video's staan in toevoegvolgorde. Een playlist start nog niet automatisch de volgende video. Oude favorieten en de oude enkele playlist worden bij het eerste gebruik overgenomen. Mislukte wijzigingen worden teruggedraaid en krijgen een zichtbare SD-foutmelding.
+Favorieten en maximaal acht benoemde playlists worden per profiel opgeslagen met reservekopie en herstel. Open het hartje bovenaan voor Favorieten & Playlists. Maak, open, bewerk of verwijder je lijsten daar. Bij maken/bewerken kies je uit dezelfde 15 originele playlist-plaatjes als in de Windows-app. Playlists staan niet meer in Instellingen. In het gele videovenster opent het playlist-icoon een keuzelijst; tik op het icoontje van een lijst om de video toe te voegen. Een lichte achtergrond geeft aan dat hij er al in staat. De video's staan in toevoegvolgorde. Een playlist start nog niet automatisch de volgende video. Oude favorieten en de oude enkele playlist worden bij het eerste gebruik overgenomen. Mislukte wijzigingen worden teruggedraaid en krijgen een zichtbare SD-foutmelding.
 
 De videospeler slaat niet-sleutelframes over als de decoder achterloopt en gebruikt multithreading. Bij codecs die verkleind decoderen ondersteunen wordt automatisch een kleinere decodeerresolutie gekozen, met behoud van ten minste 240 beeldlijnen. Hardwaredecodering blijft beschikbaar; dit voegt geen realtime omzetting voor zware H.264/VP9-video's toe.
 
@@ -72,7 +80,7 @@ Thumbnails rechtstreeks uit MEGA, pc-games en boeken zijn nog niet geport. Besta
 
 ## Installeren en bouwen
 
-Installeer WanagoBack_New3DS_0.5.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
+Installeer WanagoBack_New3DS_0.6.cia met FBI op een New 3DS, New 3DS XL of New 2DS XL met homebrew-ondersteuning. Deze versie gebruikt hetzelfde app-ID als eerdere versies, met een hogere pakketversie. Je SD-video's blijven op dezelfde plek.
 
 De code staat op de branch `codex/wanagoback-3ds` van `WanagoBack/testing`. De workflow daar compileert alleen code. De originele textures staan uitsluitend in dit bronpakket en het lokaal verpakte CIA-bestand; het 3DSX-bestand uit die workflow bevat deze textures niet.
 
