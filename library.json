@@ -183,7 +183,15 @@
       "category": "films",
       "description": "Plop en zijn vrienden gaan op zoek naar de kabouterschat",
       "year": 2008,
-      "megaUrl": "https://mega.nz/file/ZzBkBRhR#xAtSbNoTnuziP9LWAj-w2juUgvlMP45VC259bkVCang"
+      "megaUrl": "https://mega.nz/file/ZzBkBRhR#xAtSbNoTnuziP9LWAj-w2juUgvlMP45VC259bkVCang",
+      "megaUrl3ds": "https://mega.nz/file/EJgVkYiS#tBtHhor70aQ7tb32NosgErQvGV_a_pBqPc01S--AaDM",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/EJgVkYiS#tBtHhor70aQ7tb32NosgErQvGV_a_pBqPc01S--AaDM"
+        }
+      ]
     },
     {
       "folder": "Plop",
