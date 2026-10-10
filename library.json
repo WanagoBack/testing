@@ -125,7 +125,15 @@
       "folder": "InDeKijker",
       "title": "Plop RP - Space update trailer",
       "description": "De trailer van de Geannuleerde Space Update van Plop RP",
-      "megaUrl": "https://mega.nz/file/IRQTVYoY#Fos5Et0z-BKJFNIw_hgjExjMYHmpPfVQjSGPoHzwrNs"
+      "megaUrl": "https://mega.nz/file/IRQTVYoY#Fos5Et0z-BKJFNIw_hgjExjMYHmpPfVQjSGPoHzwrNs",
+      "megaUrl3ds": "https://mega.nz/file/AVZUCS6Y#WvxgljJgHXo-np09JYqIjPvb4ERhW1cX4IISxaN9YWE",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/AVZUCS6Y#WvxgljJgHXo-np09JYqIjPvb4ERhW1cX4IISxaN9YWE"
+        }
+      ]
     },
     {
       "folder": "InDeKijker",
