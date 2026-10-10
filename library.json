@@ -96,7 +96,15 @@
       "folder": "InDeKijker",
       "title": "Samson City trailer",
       "description": "De trailer voor Samson City op Plop RP",
-      "megaUrl": "https://mega.nz/file/UYonCIwL#zpKnldomoDDZ4jVHU4R7ASiPj_WvMe3FjLq_vuu0Ihs"
+      "megaUrl": "https://mega.nz/file/UYonCIwL#zpKnldomoDDZ4jVHU4R7ASiPj_WvMe3FjLq_vuu0Ihs",
+      "megaUrl3ds": "https://mega.nz/file/oBgUXa7b#zxOiasBXlsWz57VxjrLydx2uSPfjNdXKHhrZYxWEGdE",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/oBgUXa7b#zxOiasBXlsWz57VxjrLydx2uSPfjNdXKHhrZYxWEGdE"
+        }
+      ]
     },
     {
       "folder": "SamsonGert",
