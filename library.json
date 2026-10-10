@@ -111,7 +111,15 @@
       "title": "Samson en Gert Winterpret",
       "category": "series",
       "description": "S01E01 De beer",
-      "megaUrl": "https://mega.nz/file/xFxX0RgQ#Nu5Dw9oN0TH5A2O8N_h5BWiU3cCZFDTb_CLizNFPxX0"
+      "megaUrl": "https://mega.nz/file/xFxX0RgQ#Nu5Dw9oN0TH5A2O8N_h5BWiU3cCZFDTb_CLizNFPxX0",
+      "megaUrl3ds": "https://mega.nz/file/lYIh0JQb#UZTKOfCe9ThWrCuoCROffnyHMw9qnulPAO4HNurLlzE",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/lYIh0JQb#UZTKOfCe9ThWrCuoCROffnyHMw9qnulPAO4HNurLlzE"
+        }
+      ]
     },
     {
       "folder": "InDeKijker",
