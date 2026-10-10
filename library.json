@@ -167,7 +167,15 @@
       "folder": "InDeKijker",
       "title": "Wanagogo Videoclip",
       "description": "Wil je praten met piraten?",
-      "megaUrl": "https://mega.nz/file/5dwEUZrR#kK8ijZ-Pm1jT62SaLgkvTyoIjqfkS01R0raQ_hI5kIg"
+      "megaUrl": "https://mega.nz/file/5dwEUZrR#kK8ijZ-Pm1jT62SaLgkvTyoIjqfkS01R0raQ_hI5kIg",
+      "megaUrl3ds": "https://mega.nz/file/9cBgTB6R#EsuQLwrAMKDl1ILMdQb0t2kTXOVsVZ5KzQkLNm_WkXs",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/9cBgTB6R#EsuQLwrAMKDl1ILMdQb0t2kTXOVsVZ5KzQkLNm_WkXs"
+        }
+      ]
     },
     {
       "folder": "Plop",
