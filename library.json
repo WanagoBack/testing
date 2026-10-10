@@ -52,7 +52,15 @@
       "description": "Smul geniet volop van de kabouterpap",
       "seasonNumber": 3,
       "episode": 191,
-      "megaUrl": "https://mega.nz/file/Ec4AXTqD#tJ5ghuOgR7OS0vWAxnq2QyMi8J-iac17HaLr73bUblQ"
+      "megaUrl": "https://mega.nz/file/Ec4AXTqD#tJ5ghuOgR7OS0vWAxnq2QyMi8J-iac17HaLr73bUblQ",
+      "megaUrl3ds": "https://mega.nz/file/FYJXGYQJ#Mq1b3Gx7ermHwaDGXmd51UQ8M_xf3S5luod-U6VxKZQ",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/FYJXGYQJ#Mq1b3Gx7ermHwaDGXmd51UQ8M_xf3S5luod-U6VxKZQ"
+        }
+      ]
     },
     {
       "folder": "Plop",
