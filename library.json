@@ -247,7 +247,15 @@
       "category": "films",
       "description": "Na het eten van groeibessen vindt lui zijn weg naar de grote stad",
       "year": 2006,
-      "megaUrl": "https://mega.nz/file/NrpmHQyQ#JFVDSjFZcAJcyzOX8NJbQbgv3-0zBfE0Hc-Xu4jO7iQ"
+      "megaUrl": "https://mega.nz/file/NrpmHQyQ#JFVDSjFZcAJcyzOX8NJbQbgv3-0zBfE0Hc-Xu4jO7iQ",
+      "megaUrl3ds": "https://mega.nz/file/4NBTAITA#gSiXHsrUkpQGEEeic3Vr4NJ33k0eAH6fYAg8a_nUASQ",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/4NBTAITA#gSiXHsrUkpQGEEeic3Vr4NJ33k0eAH6fYAg8a_nUASQ"
+        }
+      ]
     },
     {
       "folder": "SamsonGert",
