@@ -3,9 +3,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-#define MAGIC 0x574c5331u
+#define MAGIC 0x574c5332u
 static bool valid_list(const WgbList* l){
- if(l->count>WLIST_ITEMS||!memchr(l->name,0,sizeof(l->name)))return false;
+ if(l->icon<1||l->icon>15||l->count>WLIST_ITEMS||!memchr(l->name,0,sizeof(l->name)))return false;
  for(unsigned i=0;i<l->count;i++)if(!l->keys[i][0]||!memchr(l->keys[i],0,32))return false;
  return true;
 }
@@ -20,6 +20,7 @@ bool Wlists_load(const char* path,WgbLists* lists){
   if(ok)return true;
  }
  memset(lists,0,sizeof(*lists));lists->magic=MAGIC;lists->count=1;
+ lists->favorites.icon=lists->lists[0].icon=1;
  strcpy(lists->favorites.name,"Favorieten");strcpy(lists->lists[0].name,"Mijn playlist");return false;
 }
 bool Wlists_save(const char* path,const WgbLists* lists){
