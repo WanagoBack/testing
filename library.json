@@ -67,7 +67,15 @@
       "title": "Kaboutercarnaval",
       "category": "karaoke",
       "description": "De kabouters vieren carnaval",
-      "megaUrl": "https://mega.nz/file/BB4DTZyY#4CensycUB3joRcZSv0Z2aL04Iw08KbeKo88Dqk3Jyj8"
+      "megaUrl": "https://mega.nz/file/BB4DTZyY#4CensycUB3joRcZSv0Z2aL04Iw08KbeKo88Dqk3Jyj8",
+      "megaUrl3ds": "https://mega.nz/file/1QQFHTBS#r-BlkhPoi4NgyGPlLMWNW015BqPYrQ5fKitBsOtStVo",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/1QQFHTBS#r-BlkhPoi4NgyGPlLMWNW015BqPYrQ5fKitBsOtStVo"
+        }
+      ]
     },
     {
       "folder": "Plop",
