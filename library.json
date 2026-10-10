@@ -20,7 +20,15 @@
       "folder": "InDeKijker",
       "title": "Wat is Wanagogo?",
       "description": "Wat is Wanagogo eigenlijk?",
-      "megaUrl": "https://mega.nz/file/4IJDwJDR#XkAzf_fhFbQ8MZaeZmC1Jyky9GvlVcnmHe273TtxyV4"
+      "megaUrl": "https://mega.nz/file/4IJDwJDR#XkAzf_fhFbQ8MZaeZmC1Jyky9GvlVcnmHe273TtxyV4",
+      "megaUrl3ds": "https://mega.nz/file/pEADXJIJ#NuRjS05Fls0g5UhyGiGeiUWEOcKHkU_H0ZtEPzjCloU",
+      "sources3ds": [
+        {
+          "height": 240,
+          "bitrate": 398000,
+          "megaUrl": "https://mega.nz/file/pEADXJIJ#NuRjS05Fls0g5UhyGiGeiUWEOcKHkU_H0ZtEPzjCloU"
+        }
+      ]
     },
     {
       "folder": "Plop",
